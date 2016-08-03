@@ -1,0 +1,24 @@
+{
+    "name": "grithin/php-conform",
+    "description": "PHP Input Conform Handler",
+    "keywords": ["php input get post filter validate"],
+    "license": "Apache-2.0",
+    "homepage": "http://devtools.grithin.com",
+    "authors": [
+        {
+            "name": "Adam F Frederick",
+            "email": "bob_bf2@deemit.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.5.9",
+        "ext-pdo": "*",
+        "grithin/phpbase": ">=2.3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Grithin\\Conform\\": "src/Conform/",
+            "Grithin\\": "src/"
+        }
+    }
+}
