@@ -85,6 +85,10 @@ class Validate{
 		return $v;
 	}
 	function float($v){
+		# filter_var accepts strings, even with surrounding space, so trim in case it is a string
+		if(is_string($v)){
+			$v = trim($v);
+		}
 		if(filter_var($v, FILTER_VALIDATE_FLOAT) === false){
 			self::error();
 		}
