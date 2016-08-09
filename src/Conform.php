@@ -214,9 +214,14 @@ class Conform{
 	}
 
 	function resolve_fn($fn_path){
-		$fn = Arrays::get($this->conformers, $fn_path);
+		try{
+			$fn = Arrays::get($this->conformers, $fn_path);
+		}catch(\Exception $e){}
+
 		if(!$fn){
-			$fn = Arrays::get($GLOBALS, $fn_path);
+			try{
+				$fn = Arrays::get($GLOBALS, $fn_path);
+			}catch(\Exception $e){}
 		}
 		if(!is_callable($fn)){
 			throw new Exception('fn_path is not a function path: '.$fn_path);
@@ -275,7 +280,11 @@ class Conform{
 	}
 
 	function apply_rules($field, $rules){
-		$value = Arrays::get($this->input, $field);
+		try{
+			$value = Arrays::get($this->input, $field);
+		}catch(\Exception $e){ # Field wasn't found
+			$value = null;
+		}
 		foreach($rules as $rule){
 			# handle continuity
 			if($rule['flags']['continuity'] && $this->field_errors($field)){
