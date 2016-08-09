@@ -17,6 +17,15 @@ class Conform{
 		$this->input = $input;
 		$this->output = [];
 	}
+	static function standard_instance($input=null){
+		if($input === null){
+			$input = self::input();
+		}
+		$conform = new self($input);
+		$conform->add_conformer('f',\Grithin\Conform\Filter::init());
+		$conform->add_conformer('v',new \Grithin\Conform\Validate);
+		return $conform;
+	}
 
 	/**
 	With input, must consider that:
@@ -53,6 +62,21 @@ class Conform{
 		return array_merge(self::get(), self::post());
 	}
 
+	/// attributes spelled out as parameters
+	function add_error($message, $type=null, $fields=[], $rule=null, $params=null){
+		$error = ['message'=>$message];
+		if($type){
+			$error['type'] = $type;
+		}
+		$error['fields'] = (array)$fields;
+		if($rule){
+			$error['rule'] = $rule;
+		}
+		if($params){
+			$error['params'] = $params;
+		}
+		$this->errors[] = $error;
+	}
 	/// add an error to instance errors array
 	function error($details,$fields=[]){
 		if(!$details){ # discard empty errors
@@ -326,6 +350,10 @@ class Conform{
 		}
 		return $value;
 	}
+	/// gets standardised errors
+	function get_errors(){
+		return $this->standardise_errors();
+	}
 	function standardise_errors($errors=false){
 		$errors = $errors === false ? $this->errors : $errors;
 		$std_errors = [];
@@ -355,6 +383,11 @@ class Conform{
 			return false;
 		}
 		return true;
+	}
+
+	/// @alias	fields_rules
+	function output_from($fields_rules){
+		return $this->fields_rules($field_map);
 	}
 
 	/// get std errors from fields_rules
