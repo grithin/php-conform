@@ -239,12 +239,12 @@ class Conform{
 
 	function resolve_fn($fn_path){
 		try{
-			$fn = Arrays::get($this->conformers, $fn_path);
+			$fn = Arrays::got($this->conformers, $fn_path);
 		}catch(\Exception $e){}
 
 		if(!$fn){
 			try{
-				$fn = Arrays::get($GLOBALS, $fn_path);
+				$fn = Arrays::got($GLOBALS, $fn_path);
 			}catch(\Exception $e){}
 		}
 		if(!is_callable($fn)){
@@ -305,7 +305,7 @@ class Conform{
 
 	function apply_rules($field, $rules){
 		try{
-			$value = Arrays::get($this->input, $field);
+			$value = Arrays::got($this->input, $field);
 		}catch(\Exception $e){ # Field wasn't found
 			$value = null;
 		}
