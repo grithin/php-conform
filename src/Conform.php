@@ -267,6 +267,10 @@ class Conform{
 
 
 	function fields_rules($field_map){
+		if(!is_array($field_map)){
+			throw new \Exception('field_map must be an array');
+		}
+
 		# attach `output` to `this` so subsequent field rulesets can access new formatted values
 		$this->output = [];
 
@@ -386,7 +390,7 @@ class Conform{
 	}
 
 	/// @alias	fields_rules
-	function output_from($fields_rules){
+	function output_from($field_map){
 		return $this->fields_rules($field_map);
 	}
 
