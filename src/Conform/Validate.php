@@ -15,9 +15,9 @@ class Validate{
 	function test($method, $value){
 		try{
 			if($this){
-				call_user_func_array(array(self, $method), array_slice(func_get_args(),1));
-			}else{
 				call_user_func_array(array($this, $method), array_slice(func_get_args(),1));
+			}else{
+				call_user_func_array(array(self, $method), array_slice(func_get_args(),1));
 			}
 
 			return true;
