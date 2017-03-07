@@ -122,11 +122,15 @@ class Validate{
 	function emailLine($v){
 		$v = trim($v);
 		if(!self::test('email', $v)){
-			$email = Filter::email($v);
-			if(!self::test('email', $email)){
+			if(preg_match('@^[^<]*?<[^>]+>$@', $v)){ # it matches the form of a name + email line
+				$email = Filter::email($v);
+				if(!self::test('email', $email)){ # ensure the address part is conforming
+					self::error();
+				}
+				return $v;
+			}else{
 				self::error();
 			}
-			return $email;
 		}
 		return $v;
 	}
