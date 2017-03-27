@@ -240,9 +240,21 @@ class Validate{
 			self::error();
 		}
 	}
+	# validate that a string of form 'YYYY-mm-dd' is an actual date
+	function date($v){
+		list($y,$m,$d) = explode('-', $v);
+		if(!Time::validate($y,$m,$d)){
+			self::error();
+		}
+		return $x;
+	}
+	# alias
+	function datetime(){
+		return call_user_func_array([$this,'time'], func_get_args());
+	}
 	function time_max($v, $max){
 		if($v > new Time($max)){
-			self::error();
+			self::error(['details'=>$max]);
 		}
 		return $v;
 	}

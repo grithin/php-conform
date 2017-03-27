@@ -106,9 +106,17 @@ class Filter{
 	function time_age($v){
 		return (new Time($v))->diff(new Time('now'));
 	}
+	# variable format
+	function time_format($v, $format){
+		return $this->time($v)->format($format);
+	}
 	function age($v){
 		return $this->time_age($this->time($v));
 	}
+	function day_start($v){
+		return $this->time($v)->modify('now 00:00:00');
+	}
+	# format to YYYY-mm-dd
 	function date($v){
 		return $this->time($v)->date;
 	}
@@ -118,6 +126,7 @@ class Filter{
 	function date_to_tz($v, $out_tz){
 		return $this->time($v)->setZone($out_tz)->date;
 	}
+	# format to YYYY-mm-dd HH:ii:ss
 	function datetime($v){
 		return $this->time($v)->datetime;
 	}
