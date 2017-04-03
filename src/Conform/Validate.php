@@ -299,6 +299,12 @@ class Validate{
 	function ip4($v){
 		return self::regex($v,'@[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}@');
 	}
+	function ip($v){
+		if(inet_pton($v) === false){
+			self::error();
+		}
+		return $v;
+	}
 
 	function age_max($v, $max){
 		self::max(Filter::init()->age($v), $max);
@@ -324,11 +330,13 @@ class Validate{
 		}
 		return $v;
 	}
+
+	# USA phone
 	function phone($v){
 		$v = Filter::digits($v);
 		self::filled($v);
 
-		if(strlen($v) == 11 && substr($v,0,1) == 1){
+		if(strlen($v) == 11 && substr($v,0,1) == '1'){
 			$v = substr($v,1);
 		}
 		if(strlen($v) == 7){
@@ -339,19 +347,36 @@ class Validate{
 		}
 		return $v;
 	}
+	# Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence
 	function international_phone($v){
-		$v = Filter::digits($v);
-		self::filled($v);
+		$digits = Filter::digits($v);
+		self::filled($digits);
 
-		if(strlen($v) < 11){
+		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
+		if(strlen($digits) < 8){
 			self::error();
 		}
-		if(strlen($v) > 14){
+		# max https://www.wikiwand.com/en/E.164
+		if(strlen($digits) > 15){
 			self::error();
 		}
-		return $v;
+
+		return Filter::phone($v);
 	}
+	function phone_possible($v){
+		$digits = Filter::digits($v);
+		self::filled($digits);
 
+		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
+		if(strlen($digits) < 5){
+			self::error();
+		}
+		# max https://www.wikiwand.com/en/E.164
+		if(strlen($digits) > 15){
+			self::error();
+		}
+		return Filter::phone($v);;
+	}
 
 	/// checks that html tags have tag integrity
 	/// @note haven't used since 2007, no idea if it works
@@ -389,6 +414,7 @@ class Validate{
 		return $v;
 	}
 
+
 	//++ relies on something like Grithin/Db {
 	function db_in_table($v,$table, $db){
 		return self::db_in_table_field($v, $table, 'id', $db);
@@ -400,4 +426,14 @@ class Validate{
 		return $v;
 	}
 	//++ }
+
+	//+ relies on something like Grithin/phpbase {
+	function json_is($v){
+		Tool::json_decode($v);
+		return $v;
+	}
+	function json_parse(){
+		return Tool::json_decode($v);
+	}
+	//+ }
 }

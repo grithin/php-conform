@@ -190,4 +190,14 @@ class Filter{
 	}
 
 	//++ }
+
+	# standardize phone so it consists of (optionally '+'), [0-9], and (optinally spaces)
+	function phone($v){
+		$v = trim($v);
+		$number_groups = trim(preg_replace('@[^0-9]+@',' ', $v));
+		if($v[0]='+'){
+			$number_groups = '+'.$number_groups;
+		}
+		return $number_groups;
+	}
 }
