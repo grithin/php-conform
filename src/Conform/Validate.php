@@ -300,7 +300,7 @@ class Validate{
 		return self::regex($v,'@[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}@');
 	}
 	function ip($v){
-		if(inet_pton($v) === false){
+		if(@inet_pton($v) === false){
 			self::error();
 		}
 		return $v;
