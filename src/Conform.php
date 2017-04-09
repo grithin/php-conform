@@ -417,7 +417,7 @@ class Conform{
 
 	# standard for clearing rules that aren't applying to a particular field, where key starts with `-`
 	function non_fields_clear($array_to_filter = null){
-		if(!$array_to_filter === null){
+		if($array_to_filter === null){
 			$array_to_filter = $this->output;
 		}
 		foreach($array_to_filter as $k=>$v){
@@ -431,12 +431,10 @@ class Conform{
 	# Throw custom exception on error, otherwise return conformed input
 	function validate($rules){
 		if(!$this->valid($rules)){
-			$errors = $this->get_errors();
-			$this->clear();
-			throw new ComplexException($errors);
+			throw new ConformException($this);
 		}
 		return $this->output;
 	}
-
 }
 
+class ConformException extends ComplexException{}

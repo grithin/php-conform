@@ -436,4 +436,10 @@ class Validate{
 		return Tool::json_decode($v);
 	}
 	//+ }
+	function is_array($v){
+		if(!is_array($v)){
+			self::error();
+		}
+		return $v;
+	}
 }
