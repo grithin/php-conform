@@ -46,7 +46,7 @@ class Conform{
 	static function get(){
 		$get = $_GET;
 		if($get['_json']){
-			$get = \Grithin\Arrays::merge($get['_json'], json_decode((string)$get['_json'],true));
+			$get = \Grithin\Arrays::replace($get['_json'], json_decode((string)$get['_json'],true));
 		}
 		return $get;
 	}
