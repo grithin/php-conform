@@ -195,7 +195,8 @@ class Filter{
 	function phone($v){
 		$v = trim($v);
 		$number_groups = trim(preg_replace('@[^0-9]+@',' ', $v));
-		if($v[0]='+'){
+		$number_groups = preg_replace('@ +@',' ', $number_groups);
+		if($v[0] == '+'){
 			$number_groups = '+'.$number_groups;
 		}
 		return $number_groups;
