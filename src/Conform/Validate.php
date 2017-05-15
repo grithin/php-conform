@@ -442,4 +442,16 @@ class Validate{
 		}
 		return $v;
 	}
+	function count_min($x, $min){
+		self::is_array($x);
+		if(count($x) < $min){
+			self::error();
+		}
+	}
+	function count_max($x, $max){
+		self::is_array($x);
+		if(count($x) > $max){
+			self::error();
+		}
+	}
 }

@@ -27,6 +27,9 @@ class Filter{
 	function int($v){
 		return (int)$v;
 	}
+	function to_int($v){
+		return (int)$v;
+	}
 	function float($v){
 		return (float)$v;
 	}
@@ -40,6 +43,9 @@ class Filter{
 	/// absolute integer
 	function abs($v){
 		return abs($v);
+	}
+	function absolute_value($v){
+		return self::abs($v);
 	}
 	/// filter all but digits
 	function digits($v){
