@@ -44,18 +44,23 @@ class Conform{
 
 	/// get $_GET with the addition of allowing a "_json" key to define a structured GET input
 	static function get(){
-		$get = $_GET;
+		$get = $_GET; # avoid replacing $_GET
 		if($get['_json']){
-			$get = \Grithin\Arrays::replace($get['_json'], json_decode((string)$get['_json'],true));
+			# replace any overlapping keys with those found in `_json`
+			# since other concerns (such as paging) may not be included in the `_json` structure, but within the $_GET keys apart from `_json`, merge the existing $_GET with `_json`
+			$get = \Grithin\Arrays::replace($get, Tool::json_decode((string)$get['_json']));
 		}
 		return $get;
 	}
 	/// get $_POST, also allowing for "content_type: json"
 	static function post(){
-		if(!$_POST && substr($_SERVER['CONTENT_TYPE'],0,16) == 'application/json'){
-			$_POST = json_decode(file_get_contents('php://input'),true);
+		$post = $_POST; # avoid replacing $_POST
+		if(!$post && substr($_SERVER['CONTENT_TYPE'],0,16) == 'application/json'){
+			$post = json_decode(file_get_contents('php://input'),true);
+		}elseif($post['_json']){ # allow `_json` to overwrite post contents
+			$post = Tool::json_decode((string)$post['_json']);
 		}
-		return $_POST;
+		return $post;
 	}
 	/// a merge of self::get, and self::post, with preference to post
 	static function input(){
@@ -357,6 +362,9 @@ class Conform{
 	/// gets standardised errors
 	function get_errors(){
 		return $this->standardise_errors();
+	}
+	function clear_errors(){
+		$this->errors = [];
 	}
 	function standardise_errors($errors=false){
 		$errors = $errors === false ? $this->errors : $errors;
