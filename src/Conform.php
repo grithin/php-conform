@@ -163,14 +163,38 @@ class Conform{
 	*/
 	static function compile_rules($rules){
 		$compiled_rules = [];
-		if(is_string($rules)){
-			$rules = preg_split('/[\s,]+/', $rules);
-			$rules = Arrays::remove($rules); # remove empty rules, probably unintended by spacing after or before
-		}
+		$rules = self::rules_format($rules);
 		foreach($rules as $rule){
 			$compiled_rules[] = self::compile_rule($rule);
 		}
 		return $compiled_rules;
+	}
+
+	static function rules_format($rules){
+		if(is_string($rules)){
+			$rules = preg_split('/[\s,]+/', $rules);
+			$rules = Arrays::remove($rules); # remove empty rules, probably unintended by spacing after or before
+		}
+		return $rules;
+	}
+	# formats rules and appends to existing
+	static function conformers_append($new, $existing){
+		return self::conformers_merge($new, $existing, function($new, $existing){ return Arrays::merge($existing, $new); });
+	}
+	# formats rules and prepends to existing
+	static function conformers_prepend($new, $existing){
+		return self::conformers_merge($new, $existing, ['Arrays', 'merge']);
+	}
+	static function conformers_merge($new, $existing, $merger){
+		$fields = array_unique(array_merge(array_keys($existing), array_keys($new)));
+		foreach($fields as $field){
+			if($new[$field]){
+				$new[$field] = self::rules_format($new[$field]);
+				$existing[$field] = self::rules_format($existing[$field]);
+				$existing[$field] = $merger($new[$field], $existing[$field]);
+			}
+		}
+		return $existing;
 	}
 	/* Ex
 	$v = Conform::compile_rule('!!?bob|sue;bill;jan');
