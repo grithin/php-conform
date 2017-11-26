@@ -30,6 +30,13 @@ class Filter{
 	function to_int($v){
 		return (int)$v;
 	}
+	# Generally fine for currency representation
+	/* notes
+	https://stackoverflow.com/questions/4662138/if-dealing-with-money-in-a-float-is-bad-then-why-does-money-format-do-it
+	For pure rounding/display purposes, you're safe as long as the absolute floating-point representation error is less than $0.005 (so that rounding to the nearest cent is correct).
+	With IEEE 754 single-precision, you're safe up to $131,072.00. ($131,072.01 is represented as 131072.015625, which incorrectly rounds up.)
+	Double precision (which PHP's float uses) doesn't fail until $70,368,744,177,664.01 (which also has .015625 for the cents). You have nothing to worry about.
+	*/
 	function float($v){
 		return (float)$v;
 	}

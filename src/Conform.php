@@ -354,7 +354,7 @@ class Conform{
 			$fn = $this->resolve_fn($rule['fn_path']);
 			$params = array_merge([$value], $rule['params']);
 			# including `input` and `output` as referenced arrays doubles the time of a do-nothing callback
-			$params[] = ['field'=>$field, 'instance'=>$this];
+			$params[] = ['field'=>$field, 'instance'=>$this, 'input'=>&$this->input, 'output'=>&$this->output];
 
 			try{
 				$value = call_user_func_array($fn,$params);
