@@ -72,6 +72,12 @@ class Validate{
 		}
 		return $v;
 	}
+	function exists($v, $context){
+		if(!array_key_exists($context['field'], $context['input']) and !array_key_exists($context['field'], $context['output'])){
+			self::error();
+		}
+		return $v;
+	}
 	function filled($v){
 		if($v === '' || $v === null){
 			self::error();
