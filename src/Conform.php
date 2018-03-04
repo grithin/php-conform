@@ -50,7 +50,7 @@ class Conform{
 			# since other concerns (such as paging) may not be included in the `_json` structure, but within the $_GET keys apart from `_json`, merge the existing $_GET with `_json`
 			$get = \Grithin\Arrays::replace($get, Tool::json_decode((string)$get['_json']));
 		}
-		return $get;
+		return (array)$get;
 	}
 	/// get $_POST, also allowing for "content_type: json"
 	static function post(){
@@ -60,7 +60,7 @@ class Conform{
 		}elseif($post['_json']){ # allow `_json` to overwrite post contents
 			$post = Tool::json_decode((string)$post['_json']);
 		}
-		return $post;
+		return (array)$post;
 	}
 	/// a merge of self::get, and self::post, with preference to post
 	static function input(){
