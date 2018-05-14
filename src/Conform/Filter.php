@@ -7,6 +7,7 @@ use \Grithin\Arrays;
 
 class Filter{
 	use \Grithin\SingletonDefault;
+	use \Grithin\SelfCall;
 	public $options;
 	/*
 	@param	options	[
@@ -148,6 +149,9 @@ class Filter{
 	}
 	function datetime_to_tz($v, $out_tz){
 		return $this->time($v)->setZone($out_tz)->date;
+	}
+	function default(){
+		return self::self_static($this, 'to_'.__FUNCTION__, func_get_args());
 	}
 	/// if null or '', use default
 	function to_default($v, $default){

@@ -171,8 +171,8 @@ class Conform{
 	}
 
 	static function rules_format($rules){
-		if(is_string($rules)){
-			$rules = preg_split('/[\s,]+/', $rules);
+		if(Tool::is_scalar($rules)){
+			$rules = preg_split('/[\s,]+/', (string)$rules);
 			$rules = Arrays::remove($rules); # remove empty rules, probably unintended by spacing after or before
 		}
 		return $rules;
@@ -461,11 +461,18 @@ class Conform{
 	}
 
 	# Throw custom exception on error, otherwise return conformed input
+	# @NOTE	can be called from an instance, or statically, with user input as second parameter
 	function validate($rules){
-		if(!$this->valid($rules)){
-			throw new ConformException($this);
+		if($this){
+			if(!$this->valid($rules)){
+				throw new ConformException($this);
+			}
+			return $this->output;
+		}else{
+			$input = func_get_arg(1);
+			$instance = self::standard_instance($input);
+			return $instance->validate($rules);
 		}
-		return $this->output;
 	}
 }
 

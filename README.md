@@ -1,12 +1,28 @@
 # PHP Conform Input
 Ordered filtering and validation with standard basic logic
 
+_see source code for doc_
+
 ## Basic
 ```php
-$conform = Conform::standard_instance(); # input defaults to ~ $_POST and $_GET.  Can also pass as first parameter.
-$rules = ['user_id'=>'v.int']; # an array of rules whos keys map the keys of the input.
-$conformed = $conform->validate($rules); # returns the conformed input or throws an exception
+$input = [
+	'sue'=>'sue',
+	'goner'=>'goner'
+];
+$rules = [
+	'sue'=>null, # the key must be provided or it will not be returned in the `conformed` array even if it is in the input
+	'bob'=>'f.default|bob'
+];
 
+# instance creation with provided instance
+# input defaults to ~ $_POST and $_GET
+$conform = Conform::standard_instance($input);
+$conformed = $conform->validate($rules);
+#> {"sue": "sue", "bob": "bob"}
+
+# auto instance creation
+$conformed = Conform::validate($rules, $input);
+#> {"sue": "sue", "bob": "bob"}
 ```
 
 ## Object Attirbutes
