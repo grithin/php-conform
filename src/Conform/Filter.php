@@ -18,6 +18,20 @@ class Filter{
 	function __construct($options=[]){
 		$this->options = Arrays::merge(['input_timezone'=>'UTC','target_timezone'=>'UTC'], $options);
 	}
+	# allow for the interchangeability of `to_x` and `x` (since `to_` was just a way to get around PHP reserved keywords)
+	public function __call($method, $args){
+		$altered_method = 'to_'.$method;
+		if(method_exists($this, $altered_method)){
+			return call_user_func_array([$this, $altered_method], $args);
+		}
+		if(substr($method,0,3) == 'to_'){
+			$altered_method = substr($method,3);
+			if(method_exists($this, $altered_method)){
+				return call_user_func_array([$this, $altered_method], $args);
+			}
+		}
+		return $this->__testCall($method, $args);
+	}
 	/// convert to a string.  If array, traverse down on first elements
 	function string($v){
 		while(is_array($v)){
@@ -26,9 +40,6 @@ class Filter{
 		return (string)$v;
 	}
 	function int($v){
-		return (int)$v;
-	}
-	function to_int($v){
 		return (int)$v;
 	}
 	# Generally fine for currency representation
