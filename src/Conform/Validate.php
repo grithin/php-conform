@@ -192,13 +192,13 @@ class Validate{
 #++ }
 
 	function length($v, $length){
-		if(strlen($v) != $length){
+		if(mb_strlen($v) != $length){
 			self::error();
 		}
 		return $v;
 	}
 	function length_min($v, $min){
-		if(strlen($v) < $min){
+		if(mb_strlen($v) < $min){
 			self::error();
 		}
 		return $v;
@@ -207,13 +207,13 @@ class Validate{
 		return self::length_min($v, $min);
 	}
 	function length_gt($v, $min){
-		if(strlen($v) <= $min){
+		if(mb_strlen($v) <= $min){
 			self::error();
 		}
 		return $v;
 	}
 	function length_max($v, $max){
-		if(strlen($v) > $max){
+		if(mb_strlen($v) > $max){
 			self::error();
 		}
 		return $v;
@@ -222,7 +222,7 @@ class Validate{
 		return self::length_gte($v, $max);
 	}
 	function length_lt($v, $max){
-		if(strlen($v) >= $max){
+		if(mb_strlen($v) >= $max){
 			self::error();
 		}
 		return $v;
@@ -342,13 +342,13 @@ class Validate{
 		$v = Filter::digits($v);
 		self::filled($v);
 
-		if(strlen($v) == 11 && substr($v,0,1) == '1'){
+		if(mb_strlen($v) == 11 && substr($v,0,1) == '1'){
 			$v = substr($v,1);
 		}
-		if(strlen($v) == 7){
+		if(mb_strlen($v) == 7){
 			self::error(['type'=>'phone_area_code']);
 		}
-		if(strlen($v) != 10){
+		if(mb_strlen($v) != 10){
 			self::error();
 		}
 		return $v;
@@ -359,11 +359,11 @@ class Validate{
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
-		if(strlen($digits) < 8){
+		if(mb_strlen($digits) < 8){
 			self::error();
 		}
 		# max https://www.wikiwand.com/en/E.164
-		if(strlen($digits) > 15){
+		if(mb_strlen($digits) > 15){
 			self::error();
 		}
 
@@ -374,11 +374,11 @@ class Validate{
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
-		if(strlen($digits) < 5){
+		if(mb_strlen($digits) < 5){
 			self::error();
 		}
 		# max https://www.wikiwand.com/en/E.164
-		if(strlen($digits) > 15){
+		if(mb_strlen($digits) > 15){
 			self::error();
 		}
 		return Filter::phone($v);;
