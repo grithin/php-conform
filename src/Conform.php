@@ -267,14 +267,19 @@ class Conform{
 	}
 
 	function resolve_fn($fn_path){
-		try{
-			$fn = Arrays::got($this->conformers, $fn_path);
-		}catch(\Exception $e){}
-
-		if(!$fn){
+		if(is_string($fn_path)){
 			try{
-				$fn = Arrays::got($GLOBALS, $fn_path);
+				$fn = Arrays::got($this->conformers, $fn_path);
 			}catch(\Exception $e){}
+
+			if(!$fn){
+				try{
+					$fn = Arrays::got($GLOBALS, $fn_path);
+				}catch(\Exception $e){}
+			}
+		}else{
+			$fn = $fn_path;
+			$fn_path = Tool::json_encode($fn_path);
 		}
 		if(!is_callable($fn)){
 			throw new Exception('fn_path is not a function path: '.$fn_path);

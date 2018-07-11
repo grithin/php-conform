@@ -33,6 +33,21 @@ class Validate{
 		}
 	}
 
+	# used for converting true/flase functions into validaters
+	function callable_is_true($v, $fn, $fail_message){
+		$args = func_get_args(); #< value, fn, fail_message, additional args, context
+		array_pop($args); # clear context added by Conform
+
+		$args = array_slice($args, 3);
+		array_unshift($args, $v);
+
+		$value = call_user_func_array($fn,$args);
+		if(!$value){
+			throw new Exception($fail_message);
+		}
+		return $v;
+	}
+
 //+	basic validators{
 
 	function blank($v){

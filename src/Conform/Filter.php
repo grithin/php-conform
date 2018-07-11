@@ -208,7 +208,7 @@ class Filter{
 
 	//++ context-reliant functions  {
 
-	/// place the value into a new input key
+	/// place the value into a new input key.  Does not clear the existing key (and doing so would not prevent output from containing it)
 	function rekey($v, $key, $context){
 		$context['instance']->input[$key] = $v;
 	}
