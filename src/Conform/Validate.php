@@ -5,6 +5,7 @@ use \Grithin\Debug;
 use \Grithin\Time;
 use \Grithin\Arrays;
 use \Grithin\Tool;
+use \Grithin\Strings;
 
 class Validate{
 	function __construct($options=[]){
@@ -111,7 +112,13 @@ class Validate{
 		}
 		return $v;
 	}
-
+	function characters_acceptible($v, $regex){
+		preg_match_all('/[^'.Strings::preg_quote_delimiter($regex).']/', $v, $matches);
+		if($matches[0]){
+			throw new \Exception('Unacceptable characters: '.implode($matches[0]));
+		}
+		return  $v;
+	}
 	function regex($v,$regex){
 		if(!preg_match($regex, $v)){
 			self::error();
