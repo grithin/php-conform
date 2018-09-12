@@ -313,7 +313,7 @@ class Conform{
 				$rules = $this->compile_rules($rules);
 				try{
 					$output = $this->apply_rules($field, $rules);
-					if(!$this->field_errors($field)){
+					if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
 						$this->output[$field] = $output;
 					}
 				}catch(\Exception $e){
