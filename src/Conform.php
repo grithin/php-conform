@@ -479,6 +479,28 @@ class Conform{
 			return $instance->validate($rules);
 		}
 	}
+
+	# static-able
+	# if errors provided, new Conform instance made for ConformException with errors
+	# if errors not provided, expected public instance call, and $this provided to ConformException
+
+	/* params
+	errors: < array of errors >
+		|
+		< single text error >
+	*/
+	function except($errors=null){
+		if($errors){
+			if(!is_array($errors)){
+				$errors = [['message'=>$errors]];
+			}
+			$conform = new Conform([]);
+			$conform->errors = $errors;
+			throw new ConformException($conform);
+		}else{
+			throw new ConformException($this);
+		}
+	}
 }
 
 class ConformException extends ComplexException{}
