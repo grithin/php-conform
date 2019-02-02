@@ -456,12 +456,23 @@ class Validate{
 	//++ }
 
 	//+ relies on something like Grithin/phpbase {
+	function json($v){
+		return call_user_func_array([$this,'json_is'], func_get_args());
+	}
 	function json_is($v){
 		Tool::json_decode($v);
 		return $v;
 	}
 	function json_parse(){
 		return Tool::json_decode($v);
+	}
+	# either input is data structure, which will be conformed to JSON, or input already exists as JSON
+	function json_ensure($x){
+		if(is_array($x)){
+			return Tool::json_encode($x);
+		}else{
+			return call_user_func_array([$this,'json_is'], func_get_args());
+		}
 	}
 	//+ }
 	function is_array($v){
