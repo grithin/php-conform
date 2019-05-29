@@ -129,7 +129,7 @@ class Conform{
 		return $found;
 	}
 
-	/**
+	/*
 	@param	rules	string or array
 		Ordered mapping of rules to field names
 
@@ -153,7 +153,7 @@ class Conform{
 		-	"!" to break on error with no more rules for that field should be applied
 		-	"!!" to break on error with no more rules for any field should be applied
 		-	"?" to indicate the validation is optional, and not to throw an error (useful when combined with '!' => '?!v.filled,email')
-		-	"~" to indicate if the validation does not fail, then there was an error
+		-	"~" to indicate if the validation does not fail, then there was an error.  Note, the original value (passed in to the function) will be pushed forward
 		-	"&" to indicate code should break if there were any previous errors on that field
 		-	"&&" to indicate code should break if there were any previous errors on any field in the validate run
 

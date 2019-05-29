@@ -66,6 +66,10 @@ class Filter{
 	function absolute_value($v){
 		return self::abs($v);
 	}
+	# conform value to a positive integer
+	function id($v){
+		return self::abs(self::int($v));
+	}
 	/// filter all but digits
 	function digits($v){
 		return preg_replace('@[^0-9]@','',$v);
@@ -208,10 +212,23 @@ class Filter{
 
 	//++ context-reliant functions  {
 
-	/// place the value into a new input key.  Does not clear the existing key (and doing so would not prevent output from containing it)
+	// place the value into a new input key, nulling the current
+	/* About
+	-	Nulls existing key value.  However, output will still contain the old key
+	-	Will set the output key.  Validations for new key should come after, or their output will be overwritten
+	*/
 	function rekey($v, $key, $context){
-		$context['instance']->input[$key] = $v;
+		$this->copy($v, $key, $context);
+		return null;
 	}
+	// Copy value to a different key
+	function copy($v, $key, $context){
+		$context['instance']->input[$key] = $v;
+		$context['instance']->output[$key] = $v;
+		return $v;
+	}
+
+
 	/// blanks a field
 	function blank($v){
 		return '';
@@ -229,4 +246,22 @@ class Filter{
 		}
 		return $number_groups;
 	}
+
+	#+ relies on something like Grithin/phpbase {
+	# if a string, attempt to extract JSON from it
+	function json_decode($v){
+		if(is_string($v)){
+			$v = \Grithin\Tool::json_decode($v);
+		}
+		return $v;
+	}
+	function json_encode($v){
+		if(!is_string($v)){
+			$v = \Grithin\Tool::json_encode($v);
+		}
+		return $v;
+	}
+	#+ }
+
+
 }

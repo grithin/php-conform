@@ -106,6 +106,19 @@ class Validate{
 		}
 		return $v;
 	}
+	function absolute($v){
+		if(abs($v) != $v){
+			self::error();
+		}
+		return $v;
+	}
+	# combinatory validator: is int? is absolute value? is not zero?
+	function id($v){
+		self::int($v);
+		self::absolute($v);
+		self::true($v);
+		return $v;
+	}
 	function float($v){
 		if(filter_var($v, FILTER_VALIDATE_FLOAT) === false){
 			self::error();
@@ -269,16 +282,21 @@ class Validate{
 		}
 	}
 	# validate that a string of form 'YYYY-mm-dd' is an actual date
-	function date($v){
+	function date_exists($v){
 		list($y,$m,$d) = explode('-', $v);
 		if(!Time::validate($y,$m,$d)){
 			self::error();
 		}
-		return $x;
+		return $v;
 	}
-	# alias
+	# alias for `time`
 	function datetime(){
 		return call_user_func_array([$this,'time'], func_get_args());
+	}
+	# return a Time object, with non-date parted set to 00:00:00
+	function date(){
+		$Time =  call_user_func_array([$this,'time'], func_get_args());
+		return $Time->day_start();
 	}
 	function time_max($v, $max){
 		if($v > new Time($max)){

@@ -40,3 +40,10 @@ $conformed = Conform::validate($rules, $input);
 	input: < reference to Conform.input >
 	output < reference to Conform.output >
 ```
+
+### Accessing another instance confrmer
+```php`
+	function conformer_function($v, $context){
+		$context['instance']->conformers['name']->METHOD($v, $context);
+	}
+```
