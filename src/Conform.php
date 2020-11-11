@@ -9,8 +9,12 @@ class Conform{
 
 	public $conformers;
 	/// add a conformer class
-	function add_conformer($name, $instance){
+	function conformer_add($name, $instance){
 		$this->conformers[$name] = $instance;
+	}
+	# deprecated: renamed
+	function add_conformer($name, $instance){
+		$this->conformer_add($name, $instance);
 	}
 
 	function __construct($input, $options=[]){
@@ -22,8 +26,8 @@ class Conform{
 			$input = self::input();
 		}
 		$conform = new self($input);
-		$conform->add_conformer('f',\Grithin\Conform\Filter::init());
-		$conform->add_conformer('v',new \Grithin\Conform\Validate);
+		$conform->conformer_add('f',\Grithin\Conform\Filter::init());
+		$conform->conformer_add('v',new \Grithin\Conform\Validate);
 		return $conform;
 	}
 
@@ -68,7 +72,7 @@ class Conform{
 	}
 
 	/// attributes spelled out as parameters
-	function add_error($message, $type=null, $fields=[], $rule=null, $params=null){
+	function error_add($message, $type=null, $fields=[], $rule=null, $params=null){
 		$error = ['message'=>$message];
 		if($type){
 			$error['type'] = $type;
@@ -81,6 +85,10 @@ class Conform{
 			$error['params'] = $params;
 		}
 		$this->errors[] = $error;
+	}
+	# deprecated: rename
+	function add_error($message, $type=null, $fields=[], $rule=null, $params=null){
+		$this->error_add($message, $type, $fields, $rule, $params);
 	}
 	/// add an error to instance errors array
 	function error($details,$fields=[]){
@@ -101,6 +109,11 @@ class Conform{
 	function errors(){
 		return $this->errors;
 	}
+
+	function errors_remove(){
+		$this->errors = [];
+	}
+	# deprecated: rename
 	function remove_errors(){
 		$this->errors = [];
 	}
@@ -161,13 +174,17 @@ class Conform{
 	/* Ex
 	$v = Conform::compile_rules('!!?bob|sue;bill;jan !!?bill|joe');
 	*/
-	static function compile_rules($rules){
+	static function rules_compile($rules){
 		$compiled_rules = [];
 		$rules = self::rules_format($rules);
 		foreach($rules as $rule){
-			$compiled_rules[] = self::compile_rule($rule);
+			$compiled_rules[] = self::rule_compile($rule);
 		}
 		return $compiled_rules;
+	}
+	// deprecated: rename
+	static function compile_rules($rules){
+		return self::rules_compile($rules);
 	}
 
 	static function rules_format($rules){
@@ -201,20 +218,20 @@ class Conform{
 	$v = Conform::compile_rule(['!!?bob','sue','bill','jan']);
 	$v = Conform::compile_rule([['!!?','bob'],'sue','bill','jan']);
 	*/
-	static function compile_rule($rule){
+	static function rule_compile($rule){
 		if(is_string($rule)){
-			$parsed_rule = self::parse_rule_text($rule);
-			$rule_obj['flags'] = self::parse_flags($parsed_rule['flag_string']);
-			$rule_obj['params'] = self::parse_params($parsed_rule['params_string']);
+			$parsed_rule = self::rule_parse_text($rule);
+			$rule_obj['flags'] = self::rule_parse_flags($parsed_rule['flag_string']);
+			$rule_obj['params'] = self::rule_parse_params($parsed_rule['params_string']);
 			$rule_obj['fn_path'] = $parsed_rule['fn_path'];
 			return $rule_obj;
 		}elseif(is_array($rule)){
 			if(is_string($rule[0])){
-				$parsed_rule = self::parse_rule_text($rule[0]);
-				$rule_obj['flags'] = self::parse_flags($parsed_rule['flag_string']);
+				$parsed_rule = self::rule_parse_text($rule[0]);
+				$rule_obj['flags'] = self::rule_parse_flags($parsed_rule['flag_string']);
 				$rule_obj['fn_path'] = $parsed_rule['fn_path'];
 			}elseif(is_array($rule[0])){
-				$rule_obj['flags'] = self::parse_flags($rule[0][0]);
+				$rule_obj['flags'] = self::rule_parse_flags($rule[0][0]);
 				$rule_obj['fn_path'] = $rule[0][1];
 			}else{
 				Debug::toss(['message'=>'Non conforming rule', 'rule'=>$rule]);
@@ -223,7 +240,11 @@ class Conform{
 			return $rule_obj;
 		}
 	}
-	static function parse_rule_text($text){
+	# deprecated: rename
+	static function compile_rule($rule){
+		return self::rule_compile($rule);
+	}
+	static function rule_parse_text($text){
 		preg_match('/(^[^_a-z]+)?([^|]+)(\|(.*))?/i', $text, $match);
 		if(!$match){
 			throw new Exception('Rule text not conforming: "'.$text.'"');
@@ -234,13 +255,13 @@ class Conform{
 			'params_string'=> $match[4]
 		];
 	}
-	static function parse_params($param_string){
+	static function rule_parse_params($param_string){
 		if($param_string === null){
 			return [];
 		}
 		return preg_split('/;/', $param_string);
 	}
-	static function parse_flags($flag_string){
+	static function rule_parse_flags($flag_string){
 		if(!$flag_string){
 			return [];
 		}
@@ -305,12 +326,12 @@ class Conform{
 			throw new \Exception('field_map must be an array');
 		}
 
-		# attach `output` to `this` so subsequent field rulesets can access new formatted values
-		$this->output = [];
+		$this->clear();
+
 
 		try{
 			foreach($field_map as $field=>$rules){
-				$rules = $this->compile_rules($rules);
+				$rules = $this->rules_compile($rules);
 				try{
 					$output = $this->apply_rules($field, $rules);
 					if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
@@ -337,11 +358,11 @@ class Conform{
 	}
 
 	function field_rules($field, $rules){
-		$rules = self::compile_rules($rules);
+		$rules = self::rules_compile($rules);
 		return $this->apply_rules($field, $rules);
 	}
 
-	function apply_rules($field, $rules){
+	function rules_apply($field, $rules){
 		try{
 			$value = Arrays::got($this->input, $field);
 		}catch(\Exception $e){ # Field wasn't found
@@ -388,12 +409,18 @@ class Conform{
 		}
 		return $value;
 	}
+	// deprecated: use rules_apply
+	function apply_rules($field, $rules){
+		return $this->rules_apply($field, $rules);
+	}
 	/// gets standardised errors
-	function get_errors(){
+	function errors_get(){
 		return $this->standardise_errors();
 	}
-	function clear_errors(){
-		$this->errors = [];
+
+	// deprecated : use errors_get
+	function get_errors(){
+		return $this->errors_get();
 	}
 	function standardise_errors($errors=false){
 		$errors = $errors === false ? $this->errors : $errors;

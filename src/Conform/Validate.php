@@ -393,6 +393,15 @@ class Validate{
 		}
 		return $v;
 	}
+	# checks of the phone matches the international format - (converts spaces to "-")
+	function phone_international_format($v){
+		$v = trim($v);
+		$v = preg_replace('@ +@', '-', $v);
+		if(!preg_match('@^\+[0-9]+\-([0-9]+\-?)+$@', $v)){
+			self::error();
+		}
+		return $v;
+	}
 	# Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence
 	function international_phone($v){
 		$digits = Filter::digits($v);
@@ -408,6 +417,13 @@ class Validate{
 		}
 
 		return Filter::phone($v);
+	}
+	# either find a "+" in the string, or prefix with "1" (as in "+1" for USA)
+	function international_phone_plus_or_us($v){
+		if(strpos($v, '+') === false){
+			$v = '1'.$v;
+		}
+		return self::international_phone($v);
 	}
 	function phone_possible($v){
 		$digits = Filter::digits($v);
