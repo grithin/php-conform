@@ -172,7 +172,7 @@ class Conform{
 
 	*/
 	/* Ex
-	$v = Conform::compile_rules('!!?bob|sue;bill;jan !!?bill|joe');
+	$v = Conform::rules_compile('!!?bob|sue;bill;jan !!?bill|joe');
 	*/
 	static function rules_compile($rules){
 		$compiled_rules = [];
