@@ -18,7 +18,7 @@ class Validate{
 			if($this){
 				call_user_func_array(array($this, $method), array_slice(func_get_args(),1));
 			}else{
-				call_user_func_array(array(self, $method), array_slice(func_get_args(),1));
+				call_user_func_array(array(__CLASS__, $method), array_slice(func_get_args(),1));
 			}
 
 			return true;
@@ -444,7 +444,7 @@ class Validate{
 	/// @note haven't used since 2007, no idea if it works
 	function htmlTagContextIntegrity($value){
 		self::$tagHierarchy = [];
-		preg_replace_callback('@(</?)([^>]+)(>|$)@',array(self,'htmlTagContextIntegrityCallback'),$value);
+		preg_replace_callback('@(</?)([^>]+)(>|$)@',array(__CLASS__, 'htmlTagContextIntegrityCallback'),$value);
 		//tag hierarchy not empty, something wasn't closed
 		if(self::$tagHierarchy){
 			self::error();
