@@ -7,7 +7,6 @@ use \Grithin\Arrays;
 
 class Filter{
 	use \Grithin\SingletonDefault;
-	use \Grithin\SelfCall;
 	public $options;
 	/*
 	@param	options	[
