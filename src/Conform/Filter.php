@@ -64,11 +64,11 @@ class Filter{
 		return abs($v);
 	}
 	function absolute_value($v){
-		return self::abs($v);
+		return $this->abs($v);
 	}
 	# conform value to a positive integer
 	function id($v){
-		return self::abs(self::int($v));
+		return $this->abs($this->int($v));
 	}
 	/// filter all but digits
 	function digits($v){
@@ -165,8 +165,9 @@ class Filter{
 	function datetime_to_tz($v, $out_tz){
 		return $this->time($v)->setZone($out_tz)->date;
 	}
+	# alias for to_default
 	function default(){
-		return self::self_static($this, 'to_'.__FUNCTION__, func_get_args());
+		return call_user_func_array($this, 'to_'.__FUNCTION__, func_get_args());
 	}
 	/// if null or '', use default
 	function to_default($v, $default){
