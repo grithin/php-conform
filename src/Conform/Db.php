@@ -14,7 +14,7 @@ class Db{
 			return [];
 		}
 		$validaters[] = 'f.string';
-		if(!$info['nullable'] && !$info['autoIncrement']){
+		if(empty($info['nullable']) && empty($info['autoIncrement'])){
 			if($info['default'] === null){
 				//column must be present
 				$validaters[] = '!v.filled';

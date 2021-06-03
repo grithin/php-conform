@@ -393,7 +393,7 @@ class Conform{
 				if($rule['flags']['not'] && $error['type'] != 'not'){ # potentially, the not flag caused the Error
 					continue;
 				}
-				if(!$rule['flags']['optional']){
+				if(empty($rule['flags']['optional'])){
 					$error['rule'] = $rule;
 					$this->error($error, $field);
 				}
@@ -427,13 +427,13 @@ class Conform{
 		$std_errors = [];
 		foreach($errors as $error){
 			$std_error = $error;
-			if(!$std_error['type']){
+			if(empty($std_error['type'])){
 				$std_error['type'] = $error['rule']['fn_path'];
 			}
 			if($error['rule']['flags']['not']){
 				$std_error['type'] = '~'.$std_error['type'];
 			}
-			if(!$error['message']){
+			if(empty($error['message'])){
 				$std_error['message'] = $std_error['type'];
 			}
 			$std_error['params'] = $error['rule']['params'];
