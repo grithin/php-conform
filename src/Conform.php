@@ -205,7 +205,7 @@ class Conform{
 	static function conformers_merge($new, $existing, $merger){
 		$fields = array_unique(array_merge(array_keys($existing), array_keys($new)));
 		foreach($fields as $field){
-			if($new[$field]){
+			if(!empty($new[$field])){
 				$new[$field] = self::rules_format($new[$field]);
 				$existing[$field] = self::rules_format($existing[$field]);
 				$existing[$field] = $merger($new[$field], $existing[$field]);
@@ -385,7 +385,7 @@ class Conform{
 			try{
 				$value = call_user_func_array($fn,$params);
 
-				if($rule['flags']['not']){
+				if(!empty($rule['flags']['not'])){
 					Debug::toss(['type'=>'not']);
 				}
 			}catch(\Exception $e){
@@ -397,11 +397,11 @@ class Conform{
 					$error['rule'] = $rule;
 					$this->error($error, $field);
 				}
-				if($rule['flags']['break']){
+				if(!empty($rule['flags']['break'])){
 					$error['type'] = 'break';
 					Debug::toss($error);
 				}
-				if($rule['flags']['break_all']){
+				if(!empty($rule['flags']['break_all'])){
 					$error['type'] = 'break_all';
 					Debug::toss($error);
 				}
@@ -430,7 +430,7 @@ class Conform{
 			if(empty($std_error['type'])){
 				$std_error['type'] = $error['rule']['fn_path'];
 			}
-			if($error['rule']['flags']['not']){
+			if(!empty($error['rule']['flags']['not'])){
 				$std_error['type'] = '~'.$std_error['type'];
 			}
 			if(empty($error['message'])){

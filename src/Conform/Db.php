@@ -39,7 +39,7 @@ class Db{
 				$validaters[] = 'f.date';
 			break;
 			case 'text':
-				if($info['limit']){
+				if(!empty($info['limit'])){
 					$validaters[] = '!v.length_range|0;'.$info['limit'];
 				}
 			break;

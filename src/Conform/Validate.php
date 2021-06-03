@@ -127,7 +127,7 @@ class Validate{
 	}
 	function characters_acceptible($v, $regex){
 		preg_match_all('/[^'.Strings::preg_quote_delimiter($regex).']/', $v, $matches);
-		if($matches[0]){
+		if(!empty($matches[0])){
 			throw new \Exception('Unacceptable characters: '.implode($matches[0]));
 		}
 		return  $v;
