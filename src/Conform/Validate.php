@@ -1,4 +1,4 @@
-<?
+<?php
 namespace Grithin\Conform;
 
 use \Grithin\Debug;

@@ -1,4 +1,4 @@
-<?
+<?php
 namespace Grithin\Conform;
 
 class Db{
