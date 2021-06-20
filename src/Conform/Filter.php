@@ -6,7 +6,7 @@ use \Grithin\Time;
 use \Grithin\Arrays;
 
 class Filter{
-	use \Grithin\SingletonDefault;
+	use \Grithin\Traits\SingletonDefault;
 	public $options;
 	/*
 	@param	options	[
