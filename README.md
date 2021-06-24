@@ -1,19 +1,74 @@
 # PHP Conform Input
-Ordered filtering and validation with standard basic logic
-
-_see source code for doc_
+Ordered filtering and validation with standard input logic.
 
 
+## About
+Back around 2009, I wanted to build something that would resolve having to code the normal input logic in situations like
+-	if x field failed, don't check y field
+-	if x field failed one step of validation, don't validate it further
+-	if x field failed validation, stop validating all input and return with error
+
+There are a lot of combinations of this input field dependent logic which I thought could be simplified in expression.  So, I created this class, which has changed through the years.  I've recently updated it to be more compatible for others to use (no short tags, better code standard).
 
 
-## Instance Creation
+
+## Use Introduction
+
+
+Form validation logic mostly follows patterns:
+
+For example, if the id input is an int, check it in the database:
+```php
+$rules = ['id' => `!v.int, db.check`];
+```
+The `!` says, ensure `id` input exists as an int before doing `db.check`.
+What if we had multiple fields, but we don't care to validate them if there was no id?
+```php
+$rules = [
+	'id' => `!!v.int, db.check`,
+	'name' => 'db.check_unique'
+];
+```
+Here, the `!!` says, if `id` is not an int, exit with fail for the whole set of inputs.
+
+
+Sometimes there are optional fields that we still want to filter if they are present.  To do this, you can combine two operaters.
+```php
+$rules = [
+	'email' => `?!v.filled, v.email`,
+];
+```
+This says, if the field is not filled, stop applying the rule, but don't show as an error.  This way, if the user left the field empty, there will be no email validation and no error, but if the user had filled out the email input, there will be email validation.
+
+The order of `!` and `?` doesn't matter.
+
+
+See [Rule Item Prefixes](#rule-item-prefixes)
+
+
+
+
+
+## Rule Item Prefixes
+The prefix can be some combination of the following
+-	"!" to break on error with no more rules for that field should be applied
+-	"!!" to break on error with no more rules for any field should be applied
+-	"?" to indicate the validation is optional, and not to throw an error (useful when combined with '!' => '?!v.filled,email')
+-	"~" to indicate if the validation does not fail, then there was an error.  Note, the original value (passed in to the function) will be pushed forward
+-	"&" to indicate code should break if there were any previous errors on that field
+-	"&&" to indicate code should break if there were any previous errors on any field in the validate run
+
+
+
+
+## Examples
 ```php
 $input = [
 	'sue'=>'sue',
 	'goner'=>'goner'
 ];
 $rules = [
-	'sue'=>null, # the key must be provided or it will not be returned in the `conformed` array even if it is in the input
+	'sue'=>'',
 	'bob'=>'f.default|bob'
 ];
 
@@ -26,6 +81,40 @@ $conformed = $conform->validate($rules);
 # auto instance creation
 $conformed = Conform::validate($rules, $input);
 #> {"sue": "sue", "bob": "bob"}
+```
+
+
+
+
+
+
+
+
+
+
+There
+
+
+
+	-
+		-	this says, "ensure "
+
+
+
+
+
+_see source code for doc_
+
+
+
+
+
+## Validate And Filter Alone
+You can use Validate and Filter pseudo statically, b/c they are traited with SingletonDefault.
+
+```php
+Filter::init()->url($url)
+Validate::init()->url($url)
 ```
 
 

@@ -4,35 +4,43 @@ namespace Grithin;
 use \Exception;
 
 class Conform{
+
+	use \Grithin\Traits\SingletonDefault;
+
 	public $input;///< input on construct
-	public $output;///< output after rules
+	public $output = [];///< output after rules
+
+
+	/*	params
+	< input > < array of input > < if false, standard web input will be used >
+	*/
+	function __construct($input=false){
+		$this->input = $input;
+		if($input === false){
+			$this->input = self::web_input();
+		}
+		$this->conformer_add('f',\Grithin\Conform\Filter::init());
+		$this->conformer_add('v',\Grithin\Conform\Validate::init());
+	}
 
 	public $conformers;
 	/// add a conformer class
-	function conformer_add($name, $instance){
+	public function conformer_add($name, $instance){
 		$this->conformers[$name] = $instance;
 	}
-	# deprecated: renamed
-	function add_conformer($name, $instance){
-		$this->conformer_add($name, $instance);
+
+	# get or set input
+	public function input($input=false){
+		if($input===false){
+			return $this->input;
+		}else{
+			$this->input = $input;
+		}
 	}
 
-	function __construct($input, $options=[]){
-		$this->input = $input;
-		$this->output = [];
-	}
-	static function standard_instance($input=null){
-		if($input === null){
-			$input = self::input();
-		}
-		$conform = new self($input);
-		$conform->conformer_add('f',\Grithin\Conform\Filter::init());
-		$conform->conformer_add('v',new \Grithin\Conform\Validate);
-		return $conform;
-	}
 
 	/**
-	With input, must consider that:
+	For errors, consider that:
 	-	error message order may be desired
 	-	errors may be tied to field names
 	-	an error may be tied to multiple fields
@@ -67,7 +75,7 @@ class Conform{
 		return (array)$post;
 	}
 	/// a merge of self::get, and self::post, with preference to post
-	static function input(){
+	static function web_input(){
 		return array_merge(self::get(), self::post());
 	}
 
@@ -85,10 +93,6 @@ class Conform{
 			$error['params'] = $params;
 		}
 		$this->errors[] = $error;
-	}
-	# deprecated: rename
-	function add_error($message, $type=null, $fields=[], $rule=null, $params=null){
-		$this->error_add($message, $type, $fields, $rule, $params);
 	}
 	/// add an error to instance errors array
 	function error($details,$fields=[]){
@@ -142,6 +146,70 @@ class Conform{
 		return $found;
 	}
 
+	/* params
+	< field_map >
+		< key > : < rule list >
+		...
+	*/
+	function fields_rules($field_map){
+		if(!is_array($field_map)){
+			throw new \Exception('field_map must be an array');
+		}
+
+		$this->clear();
+
+
+		try{
+			foreach($field_map as $field=>$rules){
+				$rules = $this->rules_compile($rules);
+				try{
+					$output = $this->field_rules_apply($field, $rules);
+					if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
+						$this->output[$field] = $output;
+					}
+				}catch(\Exception $e){
+					$error = self::parse_exception($e);
+					if(isset($error['type'])){
+						if($error['type'] == 'break'){
+							# ! indicated to break out of current field
+							continue;
+						}elseif($error['type'] == 'continuity'){
+							# & indicated to break out of current field
+							continue;
+						}
+					}
+					throw $e;
+				}
+			}
+		}catch(\Exception $e){
+			$error = self::parse_exception($e);
+			if(isset($error['type']) && $error['type'] == 'break_all'){
+				# a !! indicated to break out of the entire fields validation loop
+				return $this->output;
+			}
+			throw $e;
+		}
+		return $this->output;
+	}
+	/* params
+	< field > < key to match in input >
+	< rules >
+		< rule > < see .compile_rule >
+		...
+	*/
+	function field_rules($field, $rules){
+		$rules = self::rules_compile($rules);
+		return $this->field_rules_apply($field, $rules);
+	}
+
+
+
+
+
+
+
+
+
 	/*
 	@param	rules	string or array
 		Ordered mapping of rules to field names
@@ -182,10 +250,7 @@ class Conform{
 		}
 		return $compiled_rules;
 	}
-	// deprecated: rename
-	static function compile_rules($rules){
-		return self::rules_compile($rules);
-	}
+
 
 	static function rules_format($rules){
 		if(Tool::is_scalar($rules)){
@@ -213,11 +278,37 @@ class Conform{
 		}
 		return $existing;
 	}
-	/* Ex
-	$v = Conform::compile_rule('!!?bob|sue;bill;jan');
-	$v = Conform::compile_rule(['!!?bob','sue','bill','jan']);
-	$v = Conform::compile_rule([['!!?','bob'],'sue','bill','jan']);
+
+	//	compile rule into standard format from multiple potential formats
+
+	/* params
+	(
+		< rule > < t: string > < "FUNCTION|PARAM;PARAM" >
+		||
+		< rule >
+			< prefix and function string >
+			(
+			< param >
+			...
+			)
+		||
+		< rule >
+			< >
+				< prefixes > < t: string >
+			(
+			< param >
+			...
+			)
 	*/
+	/* examples
+
+	.this('!!?fn|param1;param2');
+
+	.this(['!!?fn','param1','param2']);
+
+	.this([['!!?','fn'],'param1','param2']);
+	*/
+
 	static function rule_compile($rule){
 		if(is_string($rule)){
 			$parsed_rule = self::rule_parse_text($rule);
@@ -240,10 +331,14 @@ class Conform{
 			return $rule_obj;
 		}
 	}
-	# deprecated: rename
-	static function compile_rule($rule){
-		return self::rule_compile($rule);
-	}
+
+
+	/* About
+	Parse the text of a single rule item
+
+	prefix''function'|'params
+	ex: ?!fn|param1
+	*/
 	static function rule_parse_text($text){
 		preg_match('/(^[^_a-z]+)?([^|]+)(\|(.*))?/i', $text, $match);
 		if(!$match){
@@ -252,21 +347,30 @@ class Conform{
 		return [
 			'flag_string'=> $match[1],
 			'fn_path'=> $match[2],
-			'params_string'=> $match[4]
+			'params_string'=> isset($match[4]) ? $match[4] : ''
 		];
 	}
+	# Parse string paraams that are separated with ';'
 	static function rule_parse_params($param_string){
 		if($param_string === null){
 			return [];
 		}
 		return preg_split('/;/', $param_string);
 	}
+	# parse the various ?, !, & flags in front of the function
 	static function rule_parse_flags($flag_string){
+		$flags = [
+			'optional' => false,
+			'break' => false,
+			'continuity' => false,
+			'not' => false,
+			'break_all' => false,
+			'full_continuity' => false
+		];
 		if(!$flag_string){
-			return [];
+			return $flags;
 		}
-		# handle 2 char flags
-		$flags = [];
+		#+ handle 2 char flags first {
 		if(preg_match('/\!\!/', $flag_string)){
 			$flags['break_all'] = true;
 			$flag_string = preg_replace('/\!\!/', '', $flag_string);
@@ -275,6 +379,7 @@ class Conform{
 			$flags['full_continuity'] = true;
 			$flag_string = preg_replace('/\&\&/', '', $flag_string);
 		}
+		#+ }
 		$length = strlen($flag_string);
 		for($i=0; $i < $length; $i++){
 			switch($flag_string[$i]){
@@ -288,6 +393,8 @@ class Conform{
 	}
 
 	function resolve_fn($fn_path){
+		$fn = null;
+		Arrays::got($this->conformers, $fn_path);
 		if(is_string($fn_path)){
 			try{
 				$fn = Arrays::got($this->conformers, $fn_path);
@@ -299,7 +406,9 @@ class Conform{
 				}catch(\Exception $e){}
 			}
 		}else{
+			# handle actual functions passed in
 			$fn = $fn_path;
+			# save string representation for possible error presentation
 			$fn_path = Tool::json_encode($fn_path);
 		}
 		if(!is_callable($fn)){
@@ -321,52 +430,23 @@ class Conform{
 	}
 
 
-	function fields_rules($field_map){
-		if(!is_array($field_map)){
-			throw new \Exception('field_map must be an array');
-		}
-
-		$this->clear();
 
 
-		try{
-			foreach($field_map as $field=>$rules){
-				$rules = $this->rules_compile($rules);
-				try{
-					$output = $this->apply_rules($field, $rules);
-					if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
-						$this->output[$field] = $output;
-					}
-				}catch(\Exception $e){
-					$error = self::parse_exception($e);
-					if($error['type'] == 'break'){
-						continue;
-					}elseif($error['type'] == 'continuity'){
-						continue;
-					}
-					throw $e;
-				}
-			}
-		}catch(\Exception $e){
-			$error = self::parse_exception($e);
-			if($error['type'] == 'break_all'){
-				return $this->output;
-			}
-			throw $e;
-		}
-		return $this->output;
-	}
-
-	function field_rules($field, $rules){
-		$rules = self::rules_compile($rules);
-		return $this->apply_rules($field, $rules);
-	}
-
-	function rules_apply($field, $rules){
+	# apply a set or rules to an object path specified field within input
+	/* params
+	< field > < t:string > < object path for matching key in input >
+	< rules >:
+		< rule >
+		...
+	*/
+	function field_rules_apply($field, $rules=[]){
 		try{
 			$value = Arrays::got($this->input, $field);
 		}catch(\Exception $e){ # Field wasn't found
 			$value = null;
+		}
+		if(!$rules){
+			return  $value;
 		}
 		foreach($rules as $rule){
 			# handle continuity
@@ -378,9 +458,8 @@ class Conform{
 
 			# resolve and try function
 			$fn = $this->resolve_fn($rule['fn_path']);
-			$params = array_merge([$value], $rule['params']);
-			# including `input` and `output` as referenced arrays doubles the time of a do-nothing callback
-			$params[] = ['field'=>$field, 'instance'=>$this, 'input'=>&$this->input, 'output'=>&$this->output];
+			$params = array_merge([$value], $rule['params']); # add passed parameters (in rule) into validation funciton
+			$params[] = ['field'=>$field, 'instance'=>$this];
 
 			try{
 				$value = call_user_func_array($fn,$params);
@@ -408,10 +487,6 @@ class Conform{
 			}
 		}
 		return $value;
-	}
-	// deprecated: use rules_apply
-	function apply_rules($field, $rules){
-		return $this->rules_apply($field, $rules);
 	}
 	/// gets standardised errors
 	function errors_get(){
@@ -453,10 +528,6 @@ class Conform{
 		return true;
 	}
 
-	/// @alias	fields_rules
-	function output_from($field_map){
-		return $this->fields_rules($field_map);
-	}
 
 	/// get std errors from fields_rules
 	function errors_from($field_map){
@@ -500,10 +571,6 @@ class Conform{
 				throw new ConformException($this);
 			}
 			return $this->output;
-		}else{
-			$input = func_get_arg(1);
-			$instance = self::standard_instance($input);
-			return $instance->validate($rules);
 		}
 	}
 

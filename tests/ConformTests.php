@@ -1,6 +1,4 @@
 <?php
-$_ENV['root_folder'] = realpath(dirname(__FILE__).'/../').'/';
-require $_ENV['root_folder'] . '/vendor/autoload.php';
 
 use PHPUnit\Framework\TestCase;
 
@@ -31,7 +29,12 @@ function var_export54($var, $indent="") {
 		}
 }
 
-class MainTests extends TestCase{
+
+
+/**
+* @group Conform
+*/
+class ConformTests extends TestCase{
 	function __construct(){
 		$this->input = $input = [
 			'bob'=>'bob',

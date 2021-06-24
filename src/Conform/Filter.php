@@ -6,7 +6,10 @@ use \Grithin\Time;
 use \Grithin\Arrays;
 
 class Filter{
+
 	use \Grithin\Traits\SingletonDefault;
+
+
 	public $options;
 	/*
 	@param	options	[
@@ -19,6 +22,7 @@ class Filter{
 	}
 	# allow for the interchangeability of `to_x` and `x` (since `to_` was just a way to get around PHP reserved keywords)
 	public function __call($method, $args){
+		ppe('sue');
 		$altered_method = 'to_'.$method;
 		if(method_exists($this, $altered_method)){
 			return call_user_func_array([$this, $altered_method], $args);
@@ -30,6 +34,13 @@ class Filter{
 			}
 		}
 		return $this->__testCall($method, $args);
+	}
+
+	protected $instance_default;
+	# allow calling statically with a default instance
+	static function call($method, $args){
+		return call_user_func_array([self::init(), $method], $args);
+
 	}
 	/// convert to a string.  If array, traverse down on first elements
 	function string($v){

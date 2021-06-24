@@ -8,8 +8,12 @@ use \Grithin\Tool;
 use \Grithin\Strings;
 
 class Validate{
+
+	use \Grithin\Traits\SingletonDefault;
+
 	function __construct($options=[]){
 		$this->options = Arrays::merge(['input_timezone'=>'UTC','target_timezone'=>'UTC'], $options);
+		$this->filter = new Filter($this->options);
 	}
 
 	/// true or false return instead of exception.  Calling statically won't work on methods requiring $this (date, time)
@@ -101,7 +105,7 @@ class Validate{
 		return $v;
 	}
 	function int($v){
-		if(!Tool::isInt($v)){
+		if(!Tool::is_int($v)){
 			self::error();
 		}
 		return $v;
@@ -164,7 +168,7 @@ class Validate{
 		$v = trim($v);
 		if(!self::test('email', $v)){
 			if(preg_match('@^[^<]*?<[^>]+>$@', $v)){ # it matches the form of a name + email line
-				$email = Filter::email($v);
+				$email = $this->filter->email($v);
 				if(!self::test('email', $email)){ # ensure the address part is conforming
 					self::error();
 				}
@@ -339,7 +343,7 @@ class Validate{
 		return $callback($v);
 	}
 	function title($v){
-		$v = Filter::regex_remove($v,'@[^a-z0-9_\- \']@i');
+		$v = $this->filter->regex_remove($v,'@[^a-z0-9_\- \']@i');
 		return self::length_min($v,2);
 	}
 	function ip4($v){
@@ -353,11 +357,11 @@ class Validate{
 	}
 
 	function age_max($v, $max){
-		self::max(Filter::init()->age($v), $max);
+		self::max($this->filter->age($v), $max);
 		return $v;
 	}
 	function age_min($v, $min){
-		self::min(Filter::init()->age($v), $min);
+		self::min($this->filter->age($v), $min);
 		return $v;
 	}
 	function password($v){
@@ -379,7 +383,7 @@ class Validate{
 
 	# USA phone
 	function phone($v){
-		$v = Filter::digits($v);
+		$v = $this->filter->digits($v);
 		self::filled($v);
 
 		if(mb_strlen($v) == 11 && substr($v,0,1) == '1'){
@@ -404,7 +408,7 @@ class Validate{
 	}
 	# Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence
 	function international_phone($v){
-		$digits = Filter::digits($v);
+		$digits = $this->filter->digits($v);
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
@@ -416,7 +420,7 @@ class Validate{
 			self::error();
 		}
 
-		return Filter::phone($v);
+		return $this->filter->phone($v);
 	}
 	# either find a "+" in the string, or prefix with "1" (as in "+1" for USA)
 	function international_phone_plus_or_us($v){
@@ -426,7 +430,7 @@ class Validate{
 		return self::international_phone($v);
 	}
 	function phone_possible($v){
-		$digits = Filter::digits($v);
+		$digits = $this->filter->digits($v);
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
@@ -437,7 +441,7 @@ class Validate{
 		if(mb_strlen($digits) > 15){
 			self::error();
 		}
-		return Filter::phone($v);;
+		return $this->filter->phone($v);;
 	}
 
 	/// checks that html tags have tag integrity
