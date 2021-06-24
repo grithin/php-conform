@@ -16,7 +16,7 @@ class Validate{
 		$this->filter = new Filter($this->options);
 	}
 
-	/// true or false return instead of exception.  Calling statically won't work on methods requiring $this (date, time)
+	/** true or false return instead of exception.  Calling statically won't work on methods requiring $this (date, time) */
 	function test($method, $value){
 		try{
 			if($this){
@@ -38,7 +38,7 @@ class Validate{
 		}
 	}
 
-	# used for converting true/flase functions into validaters
+	/** used for converting true/flase functions into validaters */
 	function callable_is_true($v, $fn, $fail_message){
 		$args = func_get_args(); #< value, fn, fail_message, additional args, context
 		array_pop($args); # clear context added by Conform
@@ -67,7 +67,7 @@ class Validate{
 		}
 		return $v;
 	}
-	/// comparison using `!=`
+	/** comparison using `!=` */
 	function loose_value($v, $x){
 		if($v != $x){
 			self::error();
@@ -116,7 +116,7 @@ class Validate{
 		}
 		return $v;
 	}
-	# combinatory validator: is int? is absolute value? is not zero?
+	/** combinatory validator: is int? is absolute value? is not zero? */
 	function id($v){
 		self::int($v);
 		self::absolute($v);
@@ -142,7 +142,7 @@ class Validate{
 		}
 		return $v;
 	}
-	/// $v is a key in $hash
+	/** $v is a key in $hash */
 	function key_in($v, $hash){
 		if(!isset($hash[$value])){
 			self::error();
@@ -150,7 +150,7 @@ class Validate{
 		return $v;
 	}
 
-	/// $v is in $a
+	/** $v is in $a */
 	function in($v, $a){
 		if(!in_array($v,$a)){
 			self::error();
@@ -163,7 +163,7 @@ class Validate{
 		}
 		return $v;
 	}
-	// Ex: joe johnson <joe@bob.com>
+	/** Ex: joe johnson <joe@bob.com> */
 	function emailLine($v){
 		$v = trim($v);
 		if(!self::test('email', $v)){
@@ -285,7 +285,7 @@ class Validate{
 			self::error();
 		}
 	}
-	# validate that a string of form 'YYYY-mm-dd' is an actual date
+	/** validate that a string of form 'YYYY-mm-dd' is an actual date */
 	function date_exists($v){
 		list($y,$m,$d) = explode('-', $v);
 		if(!Time::validate($y,$m,$d)){
@@ -293,11 +293,11 @@ class Validate{
 		}
 		return $v;
 	}
-	# alias for `time`
+	/** alias for `time` */
 	function datetime(){
 		return call_user_func_array([$this,'time'], func_get_args());
 	}
-	# return a Time object, with non-date parted set to 00:00:00
+	/** return a Time object, with non-date parted set to 00:00:00 */
 	function date(){
 		$Time =  call_user_func_array([$this,'time'], func_get_args());
 		return $Time->day_start();
@@ -329,7 +329,7 @@ class Validate{
 		}
 		self::error();
 	}
-	/// inverter function.  May want to use `~` instead
+	/** inverter function.  May want to use `~` instead */
 	function not_mime($v,$mimes){
 		if(self::test('mime', $v, $mimes)){
 			self::error();
@@ -373,7 +373,7 @@ class Validate{
 		}
 		return $v;
 	}
-	/// 5 or 5+4 zip
+	/** 5 or 5+4 zip */
 	function zip($v){
 		if(!preg_match("/^([0-9]{5})(-[0-9]{4})?$/i",$v)) {
 			self::error();
@@ -381,7 +381,7 @@ class Validate{
 		return $v;
 	}
 
-	# USA phone
+	/** USA phone */
 	function phone($v){
 		$v = $this->filter->digits($v);
 		self::filled($v);
@@ -397,7 +397,7 @@ class Validate{
 		}
 		return $v;
 	}
-	# checks of the phone matches the international format - (converts spaces to "-")
+	/** checks of the phone matches the international format - (converts spaces to "-") */
 	function phone_international_format($v){
 		$v = trim($v);
 		$v = preg_replace('@ +@', '-', $v);
@@ -406,7 +406,7 @@ class Validate{
 		}
 		return $v;
 	}
-	# Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence
+	/** Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence */
 	function international_phone($v){
 		$digits = $this->filter->digits($v);
 		self::filled($digits);
@@ -422,7 +422,7 @@ class Validate{
 
 		return $this->filter->phone($v);
 	}
-	# either find a "+" in the string, or prefix with "1" (as in "+1" for USA)
+	/** either find a "+" in the string, or prefix with "1" (as in "+1" for USA) */
 	function international_phone_plus_or_us($v){
 		if(strpos($v, '+') === false){
 			$v = '1'.$v;
@@ -444,8 +444,8 @@ class Validate{
 		return $this->filter->phone($v);;
 	}
 
-	/// checks that html tags have tag integrity
-	/// @note haven't used since 2007, no idea if it works
+	/** checks that html tags have tag integrity */
+	/** @note haven't used since 2007, no idea if it works */
 	function htmlTagContextIntegrity($value){
 		self::$tagHierarchy = [];
 		preg_replace_callback('@(</?)([^>]+)(>|$)@',array(__CLASS__, 'htmlTagContextIntegrityCallback'),$value);
@@ -504,7 +504,7 @@ class Validate{
 	function json_parse(){
 		return Tool::json_decode($v);
 	}
-	# either input is data structure, which will be conformed to JSON, or input already exists as JSON
+	/** either input is data structure, which will be conformed to JSON, or input already exists as JSON */
 	function json_ensure($x){
 		if(is_array($x)){
 			return Tool::json_encode($x);

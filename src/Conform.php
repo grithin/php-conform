@@ -11,7 +11,7 @@ class Conform{
 	public $output = [];///< output after rules
 
 
-	/*	params
+	/**	params
 	< input > < array of input > < if false, standard web input will be used >
 	*/
 	function __construct($input=false){
@@ -24,12 +24,12 @@ class Conform{
 	}
 
 	public $conformers;
-	/// add a conformer class
+	/** add a conformer class */
 	public function conformer_add($name, $instance){
 		$this->conformers[$name] = $instance;
 	}
 
-	# get or set input
+	/** get or set input */
 	public function input($input=false){
 		if($input===false){
 			return $this->input;
@@ -54,7 +54,7 @@ class Conform{
 	*/
 	public $errors = [];
 
-	/// get $_GET with the addition of allowing a "_json" key to define a structured GET input
+	/** get $_GET with the addition of allowing a "_json" key to define a structured GET input */
 	static function get(){
 		$get = $_GET; # avoid replacing $_GET
 		if(!empty($get['_json'])){
@@ -64,7 +64,7 @@ class Conform{
 		}
 		return (array)$get;
 	}
-	/// get $_POST, also allowing for "content_type: json"
+	/** get $_POST, also allowing for "content_type: json" */
 	static function post(){
 		$post = $_POST; # avoid replacing $_POST
 		if(!$post && isset($_SERVER['CONTENT_TYPE']) && substr($_SERVER['CONTENT_TYPE'],0,16) == 'application/json'){
@@ -74,12 +74,12 @@ class Conform{
 		}
 		return (array)$post;
 	}
-	/// a merge of self::get, and self::post, with preference to post
+	/** a merge of self::get, and self::post, with preference to post */
 	static function web_input(){
 		return array_merge(self::get(), self::post());
 	}
 
-	/// attributes spelled out as parameters
+	/** attributes spelled out as parameters */
 	function error_add($message, $type=null, $fields=[], $rule=null, $params=null){
 		$error = ['message'=>$message];
 		if($type){
@@ -94,7 +94,7 @@ class Conform{
 		}
 		$this->errors[] = $error;
 	}
-	/// add an error to instance errors array
+	/** add an error to instance errors array */
 	function error($details,$fields=[]){
 		if(!$details){ # discard empty errors
 			return;
@@ -109,7 +109,7 @@ class Conform{
 		$this->errors[] = $error;
 	}
 
-	/// getter
+	/** getter */
 	function errors(){
 		return $this->errors;
 	}
@@ -117,21 +117,21 @@ class Conform{
 	function errors_remove(){
 		$this->errors = [];
 	}
-	# deprecated: rename
+	/** deprecated: rename */
 	function remove_errors(){
 		$this->errors = [];
 	}
-	/// clear errors and output
+	/** clear errors and output */
 	function clear(){
 		$this->errors = [];
 		$this->output = [];
 	}
 
-	/// get all errors that include a field
+	/** get all errors that include a field */
 	function field_errors($field){
 		return $this->fields_errors([$field]);
 	}
-	/// get all errors that include any of "fields"
+	/** get all errors that include any of "fields" */
 	function fields_errors($fields){
 		if(!is_array($fields)){
 			throw new Exception('$fields param must be an array of fields');
@@ -146,7 +146,7 @@ class Conform{
 		return $found;
 	}
 
-	/* params
+	/** params
 	< field_map >
 		< key > : < rule list >
 		...
@@ -191,7 +191,7 @@ class Conform{
 		}
 		return $this->output;
 	}
-	/* params
+	/** params
 	< field > < key to match in input >
 	< rules >
 		< rule > < see .compile_rule >
@@ -210,7 +210,7 @@ class Conform{
 
 
 
-	/*
+	/**
 	@param	rules	string or array
 		Ordered mapping of rules to field names
 
@@ -239,7 +239,7 @@ class Conform{
 		-	"&&" to indicate code should break if there were any previous errors on any field in the validate run
 
 	*/
-	/* Ex
+	/** Ex
 	$v = Conform::rules_compile('!!?bob|sue;bill;jan !!?bill|joe');
 	*/
 	static function rules_compile($rules){
@@ -259,11 +259,11 @@ class Conform{
 		}
 		return $rules;
 	}
-	# formats rules and appends to existing
+	/** formats rules and appends to existing */
 	static function conformers_append($new, $existing){
 		return self::conformers_merge($new, $existing, function($new, $existing){ return Arrays::merge($existing, $new); });
 	}
-	# formats rules and prepends to existing
+	/** formats rules and prepends to existing */
 	static function conformers_prepend($new, $existing){
 		return self::conformers_merge($new, $existing, ['Arrays', 'merge']);
 	}
@@ -279,9 +279,9 @@ class Conform{
 		return $existing;
 	}
 
-	//	compile rule into standard format from multiple potential formats
+	/**	compile rule into standard format from multiple potential formats */
 
-	/* params
+	/** params
 	(
 		< rule > < t: string > < "FUNCTION|PARAM;PARAM" >
 		||
@@ -300,7 +300,7 @@ class Conform{
 			...
 			)
 	*/
-	/* examples
+	/** examples
 
 	.this('!!?fn|param1;param2');
 
@@ -333,7 +333,7 @@ class Conform{
 	}
 
 
-	/* About
+	/** About
 	Parse the text of a single rule item
 
 	prefix''function'|'params
@@ -350,14 +350,14 @@ class Conform{
 			'params_string'=> isset($match[4]) ? $match[4] : ''
 		];
 	}
-	# Parse string paraams that are separated with ';'
+	/** Parse string paraams that are separated with ';' */
 	static function rule_parse_params($param_string){
 		if($param_string === null){
 			return [];
 		}
 		return preg_split('/;/', $param_string);
 	}
-	# parse the various ?, !, & flags in front of the function
+	/** parse the various ?, !, & flags in front of the function */
 	static function rule_parse_flags($flag_string){
 		$flags = [
 			'optional' => false,
@@ -432,8 +432,8 @@ class Conform{
 
 
 
-	# apply a set or rules to an object path specified field within input
-	/* params
+	/** apply a set or rules to an object path specified field within input */
+	/** params
 	< field > < t:string > < object path for matching key in input >
 	< rules >:
 		< rule >
@@ -488,12 +488,12 @@ class Conform{
 		}
 		return $value;
 	}
-	/// gets standardised errors
+	/** gets standardised errors */
 	function errors_get(){
 		return $this->standardise_errors();
 	}
 
-	// deprecated : use errors_get
+	/** deprecated : use errors_get */
 	function get_errors(){
 		return $this->errors_get();
 	}
@@ -519,7 +519,7 @@ class Conform{
 		return $std_errors;
 	}
 
-	/// false or true on error after fields_rules
+	/** false or true on error after fields_rules */
 	function valid($field_map){
 		$output = $this->fields_rules($field_map);
 		if($this->errors){
@@ -529,12 +529,12 @@ class Conform{
 	}
 
 
-	/// get std errors from fields_rules
+	/** get std errors from fields_rules */
 	function errors_from($field_map){
 		$this->fields_rules($field_map);
 		return $this->standardise_errors();
 	}
-	/*
+	/**
 
 		0 : [
 		'fields' : [
@@ -550,7 +550,7 @@ class Conform{
 	}
 	*/
 
-	# standard for clearing rules that aren't applying to a particular field, where key starts with `-`
+	/** standard for clearing rules that aren't applying to a particular field, where key starts with `-` */
 	function non_fields_clear($array_to_filter = null){
 		if($array_to_filter === null){
 			$array_to_filter = $this->output;
@@ -563,8 +563,8 @@ class Conform{
 		return $array_to_filter;
 	}
 
-	# Throw custom exception on error, otherwise return conformed input
-	# @NOTE	can be called from an instance, or statically, with user input as second parameter
+	/** Throw custom exception on error, otherwise return conformed input */
+	/** @NOTE	can be called from an instance, or statically, with user input as second parameter */
 	function validate($rules){
 		if($this){
 			if(!$this->valid($rules)){
@@ -574,11 +574,11 @@ class Conform{
 		}
 	}
 
-	# static-able
-	# if errors provided, new Conform instance made for ConformException with errors
-	# if errors not provided, expected public instance call, and $this provided to ConformException
+	/** static-able */
+	/** if errors provided, new Conform instance made for ConformException with errors */
+	/** if errors not provided, expected public instance call, and $this provided to ConformException */
 
-	/* params
+	/** params
 	errors: < array of errors >
 		|
 		< single text error >

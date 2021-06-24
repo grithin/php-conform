@@ -11,7 +11,7 @@ class Filter{
 
 
 	public $options;
-	/*
+	/**
 	@param	options	[
 			input_timezone: < converted from >
 			target_timezone: < converted to >
@@ -20,7 +20,7 @@ class Filter{
 	function __construct($options=[]){
 		$this->options = Arrays::merge(['input_timezone'=>'UTC','target_timezone'=>'UTC'], $options);
 	}
-	# allow for the interchangeability of `to_x` and `x` (since `to_` was just a way to get around PHP reserved keywords)
+	/** allow for the interchangeability of `to_x` and `x` (since `to_` was just a way to get around PHP reserved keywords) */
 	public function __call($method, $args){
 		ppe('sue');
 		$altered_method = 'to_'.$method;
@@ -37,12 +37,12 @@ class Filter{
 	}
 
 	protected $instance_default;
-	# allow calling statically with a default instance
+	/** allow calling statically with a default instance */
 	static function call($method, $args){
 		return call_user_func_array([self::init(), $method], $args);
 
 	}
-	/// convert to a string.  If array, traverse down on first elements
+	/** convert to a string.  If array, traverse down on first elements */
 	function string($v){
 		while(is_array($v)){
 			$v = array_shift($v);
@@ -52,8 +52,8 @@ class Filter{
 	function int($v){
 		return (int)$v;
 	}
-	# Generally fine for currency representation
-	/* notes
+	/** Generally fine for currency representation */
+	/** notes
 	https://stackoverflow.com/questions/4662138/if-dealing-with-money-in-a-float-is-bad-then-why-does-money-format-do-it
 	For pure rounding/display purposes, you're safe as long as the absolute floating-point representation error is less than $0.005 (so that rounding to the nearest cent is correct).
 	With IEEE 754 single-precision, you're safe up to $131,072.00. ($131,072.01 is represented as 131072.015625, which incorrectly rounds up.)
@@ -62,37 +62,37 @@ class Filter{
 	function float($v){
 		return (float)$v;
 	}
-	# alias
+	/** alias */
 	function decimal($v){
 		return $this->float($v);
 	}
 	function bool($v){
 		return (bool)$v;
 	}
-	/// absolute integer
+	/** absolute integer */
 	function abs($v){
 		return abs($v);
 	}
 	function absolute_value($v){
 		return $this->abs($v);
 	}
-	# conform value to a positive integer
+	/** conform value to a positive integer */
 	function id($v){
 		return $this->abs($this->int($v));
 	}
-	/// filter all but digits
+	/** filter all but digits */
 	function digits($v){
 		return preg_replace('@[^0-9]@','',$v);
 	}
-	/// regex removal
+	/** regex removal */
 	function regex_remove($v, $regex){
 		return preg_replace($regex,'',$v);
 	}
-	/// regex replacement
+	/** regex replacement */
 	function regex($v, $regex, $replacement){
 		return preg_replace($regex,$replacement,$v);
 	}
-	/// prefix with http:// if not already, and trim
+	/** prefix with http:// if not already, and trim */
 	function url($v){
 		$v = trim($v);
 		if(substr($v,0,4) != 'http'){
@@ -100,10 +100,10 @@ class Filter{
 		}
 		return $v;
 	}
-	# a vestige, the preventage of using "array" as a function name
+	/** a vestige, the preventage of using "array" as a function name */
 	function to_array($v){
 		return (array)$v;	}
-	/// diminish arbitrarily deep array into a flat array using "$this->string"
+	/** diminish arbitrarily deep array into a flat array using "$this->string" */
 	function flat_array($v){
 		$v = (array) $v;
 		foreach($v as &$v2){
@@ -113,7 +113,7 @@ class Filter{
 		}
 		return $v;
 	}
-	/// format an english name
+	/** format an english name */
 	function name($v){
 		$v = $this->trim($v);
 		$v = $this->regex($v,'@ +@',' ');
@@ -145,7 +145,7 @@ class Filter{
 	function time_age($v){
 		return (new Time($v))->diff(new Time('now'));
 	}
-	# variable format
+	/** variable format */
 	function time_format($v, $format){
 		return $this->time($v)->format($format);
 	}
@@ -155,7 +155,7 @@ class Filter{
 	function day_start($v){
 		return $this->time($v)->modify('now 00:00:00');
 	}
-	# format to YYYY-mm-dd
+	/** format to YYYY-mm-dd */
 	function date($v){
 		return $this->time($v)->date;
 	}
@@ -165,7 +165,7 @@ class Filter{
 	function date_to_tz($v, $out_tz){
 		return $this->time($v)->setZone($out_tz)->date;
 	}
-	# format to YYYY-mm-dd HH:ii:ss
+	/** format to YYYY-mm-dd HH:ii:ss */
 	function datetime($v){
 		return $this->time($v)->datetime;
 	}
@@ -175,18 +175,18 @@ class Filter{
 	function datetime_to_tz($v, $out_tz){
 		return $this->time($v)->setZone($out_tz)->date;
 	}
-	# alias for to_default
+	/** alias for to_default */
 	function default(){
 		return call_user_func_array($this, 'to_'.__FUNCTION__, func_get_args());
 	}
-	/// if null or '', use default
+	/** if null or '', use default */
 	function to_default($v, $default){
 		if($v === null || $v === ''){
 			return $default;
 		}
 		return $v;
 	}
-	/// extract the email address out of a string like `bob bill <bob_bill@bob.com>`
+	/** extract the email address out of a string like `bob bill <bob_bill@bob.com>` */
 	function email($v){
 		preg_match('@<([^>]+)>@',$v,$match);
 		if(!$match){
@@ -198,14 +198,14 @@ class Filter{
 	function br_to_nl($v){
 		return preg_replace('@<br */>@i',"\n",$value);
 	}
-	/// on fields which may contain html, if they contain certain html, don't do nl to br
+	/** on fields which may contain html, if they contain certain html, don't do nl to br */
 	function conditional_br_to_nl($v){
 		if(!preg_match('@<div|<p|<table@',$v)){
 			return $this->br_to_nl($v);
 		}
 		return $v;
 	}
-	/// get the amount to 2 precision from an arbitrary string
+	/** get the amount to 2 precision from an arbitrary string */
 	function currency($value){
 		$value = preg_replace('@[^\-0-9.]@','',$value);
 		$value = round((float)$value,2);
@@ -213,7 +213,7 @@ class Filter{
 	function null($v){
 		return null;
 	}
-	/// change the value
+	/** change the value */
 	function value($v, $new){
 		return $new;
 	}
@@ -223,8 +223,8 @@ class Filter{
 
 	//++ context-reliant functions  {
 
-	// place the value into a new input key, nulling the current
-	/* About
+	/** place the value into a new input key, nulling the current */
+	/** About
 	-	Nulls existing key value.  However, output will still contain the old key
 	-	Will set the output key.  Validations for new key should come after, or their output will be overwritten
 	*/
@@ -232,7 +232,7 @@ class Filter{
 		$this->copy($v, $key, $context);
 		return null;
 	}
-	// Copy value to a different key
+	/** Copy value to a different key */
 	function copy($v, $key, $context){
 		$context['instance']->input[$key] = $v;
 		$context['instance']->output[$key] = $v;
@@ -240,14 +240,14 @@ class Filter{
 	}
 
 
-	/// blanks a field
+	/** blanks a field */
 	function blank($v){
 		return '';
 	}
 
 	//++ }
 
-	# standardize phone so it consists of (optionally '+'), [0-9], and (optinally spaces)
+	/** standardize phone so it consists of (optionally '+'), [0-9], and (optinally spaces) */
 	function phone($v){
 		$v = trim($v);
 		$number_groups = trim(preg_replace('@[^0-9]+@',' ', $v));
@@ -259,7 +259,7 @@ class Filter{
 	}
 
 	#+ relies on something like Grithin/phpbase {
-	# if a string, attempt to extract JSON from it
+	/** if a string, attempt to extract JSON from it */
 	function json_decode($v){
 		if(is_string($v)){
 			$v = \Grithin\Tool::json_decode($v);
