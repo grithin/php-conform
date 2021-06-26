@@ -3,13 +3,38 @@ namespace Grithin;
 
 use \Exception;
 
+/** Conforming and validating input to expected */
+/* About
+Processing input is often a series of filtering and validation.  In short, the input is conformed.
+
+For some input, conformance can result in:
+-	some fields conforming
+-	some fields resultin in errors
+
+To allow for this dual interest, the return of `get` either returns the conformed array, if there were no errors, or returns false if there were errors.  One must then use $Conform->errors() to get the errors.
+If there were no errors, but there was no conforming keys, an empty array will be returned.
+For convenience, since an empty array does not equate to true, `valid` is also provided to return true or false
+
+Often, it is desired to check sections of input.  For instance, an input that has multiple ticket objects, each needing conforming.
+To reflect the common use, `get` and `valid` both clear errors for each call.  If you need to save the form level errors in a structure like
+-	form
+	-	ticket
+	-	ticket
+You need to do so before running `get` on the tickets.
+
+Because it is sometimes desire to inject logic between conforming on the same input, the input is not reset per call.
+
+*/
 class Conform{
 
 	use \Grithin\Traits\SingletonDefault;
 
-	public $input;///< input on construct
-	public $output = [];///< output after rules
-
+	/** current input being tested */
+	public $input;
+	/** output after rules */
+	public $output = [];
+	/** fields associated with errors */
+	public $fields_with_error = [];
 
 	/**	params
 	< input > < array of input > < if false, standard web input will be used >
@@ -17,10 +42,11 @@ class Conform{
 	function __construct($input=false){
 		$this->input = $input;
 		if($input === false){
-			$this->input = self::web_input();
+			$this->input = self::request_input();
 		}
 		$this->conformer_add('f',\Grithin\Conform\Filter::init());
 		$this->conformer_add('v',\Grithin\Conform\Validate::init());
+		$this->conformer_add('g',new \Grithin\Conform\GlobalFunction);
 	}
 
 	public $conformers;
@@ -38,24 +64,35 @@ class Conform{
 		}
 	}
 
+	/** return conformed array or false if there were errors */
+	public function get($fields_rules){
+		$this->outcome_clear();
+		$this->fields_rules_apply($fields_rules);
+		if($this->errors){
+			return false;
+		}
+		return $this->output;
+	}
+	/** if there were no errors, return true */
+	public function valid($fields_rules){
+		$got = $this->get($fields_rules);
+		return $got === false ? false : true;
+	}
+	/** get std errors from fields_rules */
+	public function errors_from($field_map){
+		$this->fields_rules_apply($field_map);
+		return $this->errors_standardized();
+	}
 
-	/**
-	For errors, consider that:
-	-	error message order may be desired
-	-	errors may be tied to field names
-	-	an error may be tied to multiple fields
 
-	As a consequence of these considerations, the following structure of the error data is used:
-
-	[{message:<text message>, fields:[<field name>, ...]}, ...]
-
-	Additional error attributes may be added as needed.
-	Additionally, the text message part may have tokens for replacement or parsing
-	*/
+	/** @var \Grithin\Conform\Error[] $errors array of errors resulting from most recent call to get*/
 	public $errors = [];
 
-	/** get $_GET with the addition of allowing a "_json" key to define a structured GET input */
-	static function get(){
+	/** get $_GET with the addition of allowing a "_json" key to define a structured GET input
+
+	When _json key is presented, it is assumed the content of that key preresents a JSON string.  As such, the _json value is interpretted and set as the returned post input.
+	 */
+	static function request_get(){
 		$get = $_GET; # avoid replacing $_GET
 		if(!empty($get['_json'])){
 			# replace any overlapping keys with those found in `_json`
@@ -64,8 +101,13 @@ class Conform{
 		}
 		return (array)$get;
 	}
-	/** get $_POST, also allowing for "content_type: json" */
-	static function post(){
+	/** get $_POST, also allowing for "content_type: json" and a reserved _json key
+
+	When the content type is application/json, the $_POST will not be filled.  Instead, to get the JSON from the request, php://input must be read and intrepretted.  This is done in this function.
+	When _json key is presented, it is assumed the content of that key preresents a JSON string.  As such, the _json value is interpretted and set as the returned post input.
+	 */
+
+	static function request_post(){
 		$post = $_POST; # avoid replacing $_POST
 		if(!$post && isset($_SERVER['CONTENT_TYPE']) && substr($_SERVER['CONTENT_TYPE'],0,16) == 'application/json'){
 			$post = json_decode(file_get_contents('php://input'),true);
@@ -74,38 +116,19 @@ class Conform{
 		}
 		return (array)$post;
 	}
-	/** a merge of self::get, and self::post, with preference to post */
-	static function web_input(){
-		return array_merge(self::get(), self::post());
+	/** a merge of :request_get, and :request_post, with preference to post
+
+	@see \Grithin\Conform::request_post()
+	@see \Grithin\Conform::request_get()
+	 */
+	static function request_input(){
+		return array_merge(self::request_get(), self::request_post());
 	}
 
-	/** attributes spelled out as parameters */
-	function error_add($message, $type=null, $fields=[], $rule=null, $params=null){
-		$error = ['message'=>$message];
-		if($type){
-			$error['type'] = $type;
-		}
-		$error['fields'] = (array)$fields;
-		if($rule){
-			$error['rule'] = $rule;
-		}
-		if($params){
-			$error['params'] = $params;
-		}
-		$this->errors[] = $error;
-	}
-	/** add an error to instance errors array */
-	function error($details,$fields=[]){
-		if(!$details){ # discard empty errors
-			return;
-		}
-
-		$error = ['fields'=>(array)$fields];
-		if(is_array($details)){
-			$error = array_merge($error, $details);
-		}else{
-			$error['message'] = $details;	}
-
+	/** manually add an error
+	@param	\Grithin\Conform\Error	$error error
+	*/
+	function error_add(\Grithin\Conform\Error $error){
 		$this->errors[] = $error;
 	}
 
@@ -114,17 +137,11 @@ class Conform{
 		return $this->errors;
 	}
 
-	function errors_remove(){
-		$this->errors = [];
-	}
-	/** deprecated: rename */
-	function remove_errors(){
-		$this->errors = [];
-	}
-	/** clear errors and output */
-	function clear(){
+	/** clear errors, output, fields_with_error */
+	function outcome_clear(){
 		$this->errors = [];
 		$this->output = [];
+		$this->fields_with_error = [];
 	}
 
 	/** get all errors that include a field */
@@ -146,50 +163,167 @@ class Conform{
 		return $found;
 	}
 
+	protected function fields_with_error_add($fields){
+		$this->fields_with_error = array_unique(array_merge($this->fields_with_error, (array)$fields));
+	}
+
+
+
+	/** @var array $error	the current unhandled error */
+	protected $error = false;
+	/** set the current unhandled error */
+	public function error($details=''){
+		if(is_scalar($details)){
+			$details = ['message'=>$details];
+		}
+		if(!empty($details['fields'])){
+			$details['fields'] = array_unique(array_merge(Arrays::from($details['fields']), [$this->field]));
+		}else{
+			$details['fields'] = [$this->field];
+		}
+		$format = ['message'=>'','type'=>'','fields'=>null, 'rule'=>null, 'params'=>null];
+		$this->error = array_merge($format, $details);
+	}
+	public function error_unset(){
+		$this->error = false;
+	}
+
+
+	/** get 	*/
 	/** params
 	< field_map >
 		< key > : < rule list >
 		...
 	*/
-	function fields_rules($field_map){
+	function fields_rules_apply($field_map){
 		if(!is_array($field_map)){
 			throw new \Exception('field_map must be an array');
 		}
 
-		$this->clear();
-
-
-		try{
+		# function needed to allow escape points
+		$field_map_loop = function($field_map){
 			foreach($field_map as $field=>$rules){
-				$rules = $this->rules_compile($rules);
-				try{
-					$output = $this->field_rules_apply($field, $rules);
-					if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
-						$this->output[$field] = $output;
-					}
-				}catch(\Exception $e){
-					$error = self::parse_exception($e);
-					if(isset($error['type'])){
-						if($error['type'] == 'break'){
+				$output = $this->field_rules_apply($field, $rules);
+
+				if($this->error){
+					if(isset($this->error['type'])){
+						if($this->error['type'] == 'break'){
 							# ! indicated to break out of current field
 							continue;
-						}elseif($error['type'] == 'continuity'){
+						}elseif($this->error['type'] == 'continuity'){
 							# & indicated to break out of current field
 							continue;
 						}
 					}
-					throw $e;
+					return;
+				}
+
+				if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
+					$this->output[$field] = $output;
 				}
 			}
-		}catch(\Exception $e){
-			$error = self::parse_exception($e);
-			if(isset($error['type']) && $error['type'] == 'break_all'){
-				# a !! indicated to break out of the entire fields validation loop
-				return $this->output;
+		};
+		$field_map_loop($field_map);
+
+		if($this->error){
+			# a !! indicated to break out of the entire fields validation loop
+			$was_break_all_flag = isset($this->error['type']) && $this->error['type'] == 'break_all';
+			if(!$was_break_all_flag){
+				Debug::toss(['message'=>'unhandled error', 'error'=>$this->error]);
 			}
-			throw $e;
 		}
-		return $this->output;
+
+		#+ only return output for fields that aren't associated with errors.  Since a rule for one field can include association for another field, must check the current errors {
+		# @TODO $this->field_errors($field)
+		#+ }
+
+
+		return Arrays::omit($this->output, $this->fields_with_error);
+	}
+
+
+	/** magic get for `field` */
+	public function __get($key){
+		return $this->$key;
+	}
+	/** @var string $field the current field being processed by rules */
+	protected $field;
+	/** apply a set or rules to an object-path specified field within input */
+	/** params
+	< field > < t:string > < object path for matching key in input >
+	< rules >:
+		< rule >
+		...
+	*/
+	function field_rules_apply($field, $rules=[]){
+		try{
+			$value = Arrays::got($this->input, $field);
+		}catch(\Exception $e){ # Field wasn't found
+			$value = null;
+		}
+
+		$rules = $this->rules_compile($rules);
+
+		if(!$rules){
+			return  $value;
+		}
+
+		# set field for access by rule functions
+		$this->field = $field;
+
+		foreach($rules as $rule){
+			# handle continuity
+			if($rule['flags']['continuity'] && $this->field_errors($field)){
+				$this->error(['type'=>'continuity']);
+				return;
+			}elseif($rule['flags']['full_continuity'] && $this->errors){
+				$this->error(['type'=>'continuity']);
+				return;
+			}
+
+			# resolve and try function
+			$fn = $this->resolve_fn($rule['fn_path']);
+			$params = array_merge([$value], $rule['params']); # add passed parameters (in rule) into validation funciton
+			$params[] = $this;
+
+
+			# run the rule function
+			$value = call_user_func_array($fn,$params);
+
+
+
+			#+ check the outcome {
+			if(!empty($rule['flags']['not'])){
+				if(!$this->error){
+					# the rule was supposed to fail, and did not, add error
+					$this->error(['type'=>'not']);
+				}else{
+					# the rule was supposed to fail, and did so, clear the error
+					$this->error_unset();
+				}
+			}
+			if($this->error){
+				if(empty($rule['flags']['optional'])){
+					$this->error['rule'] = $rule;
+					$error = new Conform\Error($this->error['message'], $this->error['fields'], $this->error['type'], $this->error['rule'], $this->error['params']);
+
+					$this->fields_with_error_add($this->error['fields']);
+
+					$this->error_add($error);
+					$this->error_unset();
+				}
+				if(!empty($rule['flags']['break'])){
+					$this->error['type'] = 'break';
+					return;
+				}
+				if(!empty($rule['flags']['break_all'])){
+					$this->error['type'] = 'break_all';
+					return;
+				}
+			}
+			#+ }
+		}
+		return $value;
 	}
 	/** params
 	< field > < key to match in input >
@@ -259,28 +393,9 @@ class Conform{
 		}
 		return $rules;
 	}
-	/** formats rules and appends to existing */
-	static function conformers_append($new, $existing){
-		return self::conformers_merge($new, $existing, function($new, $existing){ return Arrays::merge($existing, $new); });
-	}
-	/** formats rules and prepends to existing */
-	static function conformers_prepend($new, $existing){
-		return self::conformers_merge($new, $existing, ['Arrays', 'merge']);
-	}
-	static function conformers_merge($new, $existing, $merger){
-		$fields = array_unique(array_merge(array_keys($existing), array_keys($new)));
-		foreach($fields as $field){
-			if(!empty($new[$field])){
-				$new[$field] = self::rules_format($new[$field]);
-				$existing[$field] = self::rules_format($existing[$field]);
-				$existing[$field] = $merger($new[$field], $existing[$field]);
-			}
-		}
-		return $existing;
-	}
+
 
 	/**	compile rule into standard format from multiple potential formats */
-
 	/** params
 	(
 		< rule > < t: string > < "FUNCTION|PARAM;PARAM" >
@@ -333,6 +448,31 @@ class Conform{
 	}
 
 
+
+
+
+	/** formats rules and appends to existing */
+	static function conformers_append($new, $existing){
+		return self::conformers_merge($new, $existing, function($new, $existing){ return Arrays::merge($existing, $new); });
+	}
+	/** formats rules and prepends to existing */
+	static function conformers_prepend($new, $existing){
+		return self::conformers_merge($new, $existing, ['Arrays', 'merge']);
+	}
+	static function conformers_merge($new, $existing, $merger){
+		$fields = array_unique(array_merge(array_keys($existing), array_keys($new)));
+		foreach($fields as $field){
+			if(!empty($new[$field])){
+				$new[$field] = self::rules_format($new[$field]);
+				$existing[$field] = self::rules_format($existing[$field]);
+				$existing[$field] = $merger($new[$field], $existing[$field]);
+			}
+		}
+		return $existing;
+	}
+
+
+
 	/** About
 	Parse the text of a single rule item
 
@@ -347,7 +487,7 @@ class Conform{
 		return [
 			'flag_string'=> $match[1],
 			'fn_path'=> $match[2],
-			'params_string'=> isset($match[4]) ? $match[4] : ''
+			'params_string'=> isset($match[4]) ? $match[4] : null
 		];
 	}
 	/** Parse string paraams that are separated with ';' */
@@ -394,16 +534,12 @@ class Conform{
 
 	function resolve_fn($fn_path){
 		$fn = null;
-		Arrays::got($this->conformers, $fn_path);
 		if(is_string($fn_path)){
-			try{
-				$fn = Arrays::got($this->conformers, $fn_path);
-			}catch(\Exception $e){}
-
+			$fn = Arrays::get($this->conformers, $fn_path);
 			if(!$fn){
-				try{
-					$fn = Arrays::got($GLOBALS, $fn_path);
-				}catch(\Exception $e){}
+				if(strpos($fn_path, '.')){ # it is part of an object, check GLOBALS
+					$fn = Arrays::get($GLOBALS, $fn_path);
+				}
 			}
 		}else{
 			# handle actual functions passed in
@@ -417,123 +553,6 @@ class Conform{
 		return $fn;
 	}
 
-
-	static function parse_exception($e){
-		$error = json_decode($e->getMessage(), true);
-		if(!$error){
-			$error = $e->getMessage();;
-		}
-		if(is_scalar($error)){
-			$error = ['message'=>$error];
-		}
-		return $error;
-	}
-
-
-
-
-	/** apply a set or rules to an object path specified field within input */
-	/** params
-	< field > < t:string > < object path for matching key in input >
-	< rules >:
-		< rule >
-		...
-	*/
-	function field_rules_apply($field, $rules=[]){
-		try{
-			$value = Arrays::got($this->input, $field);
-		}catch(\Exception $e){ # Field wasn't found
-			$value = null;
-		}
-		if(!$rules){
-			return  $value;
-		}
-		foreach($rules as $rule){
-			# handle continuity
-			if($rule['flags']['continuity'] && $this->field_errors($field)){
-				Debug::toss(['type'=>'continuity']);
-			}elseif($rule['flags']['full_continuity'] && $this->errors){
-				Debug::toss(['type'=>'continuity']);
-			}
-
-			# resolve and try function
-			$fn = $this->resolve_fn($rule['fn_path']);
-			$params = array_merge([$value], $rule['params']); # add passed parameters (in rule) into validation funciton
-			$params[] = ['field'=>$field, 'instance'=>$this];
-
-			try{
-				$value = call_user_func_array($fn,$params);
-
-				if(!empty($rule['flags']['not'])){
-					Debug::toss(['type'=>'not']);
-				}
-			}catch(\Exception $e){
-				$error = self::parse_exception($e);
-				if($rule['flags']['not'] && $error['type'] != 'not'){ # potentially, the not flag caused the Error
-					continue;
-				}
-				if(empty($rule['flags']['optional'])){
-					$error['rule'] = $rule;
-					$this->error($error, $field);
-				}
-				if(!empty($rule['flags']['break'])){
-					$error['type'] = 'break';
-					Debug::toss($error);
-				}
-				if(!empty($rule['flags']['break_all'])){
-					$error['type'] = 'break_all';
-					Debug::toss($error);
-				}
-			}
-		}
-		return $value;
-	}
-	/** gets standardised errors */
-	function errors_get(){
-		return $this->standardise_errors();
-	}
-
-	/** deprecated : use errors_get */
-	function get_errors(){
-		return $this->errors_get();
-	}
-	function standardise_errors($errors=false){
-		$errors = $errors === false ? $this->errors : $errors;
-		$std_errors = [];
-		foreach($errors as $error){
-			$std_error = $error;
-			if(empty($std_error['type'])){
-				$std_error['type'] = $error['rule']['fn_path'];
-			}
-			if(!empty($error['rule']['flags']['not'])){
-				$std_error['type'] = '~'.$std_error['type'];
-			}
-			if(empty($error['message'])){
-				$std_error['message'] = $std_error['type'];
-			}
-			$std_error['params'] = $error['rule']['params'];
-
-			$std_errors[] = $std_error;
-		}
-
-		return $std_errors;
-	}
-
-	/** false or true on error after fields_rules */
-	function valid($field_map){
-		$output = $this->fields_rules($field_map);
-		if($this->errors){
-			return false;
-		}
-		return true;
-	}
-
-
-	/** get std errors from fields_rules */
-	function errors_from($field_map){
-		$this->fields_rules($field_map);
-		return $this->standardise_errors();
-	}
 	/**
 
 		0 : [
@@ -563,38 +582,7 @@ class Conform{
 		return $array_to_filter;
 	}
 
-	/** Throw custom exception on error, otherwise return conformed input */
-	/** @NOTE	can be called from an instance, or statically, with user input as second parameter */
-	function validate($rules){
-		if($this){
-			if(!$this->valid($rules)){
-				throw new ConformException($this);
-			}
-			return $this->output;
-		}
-	}
 
-	/** static-able */
-	/** if errors provided, new Conform instance made for ConformException with errors */
-	/** if errors not provided, expected public instance call, and $this provided to ConformException */
-
-	/** params
-	errors: < array of errors >
-		|
-		< single text error >
-	*/
-	function except($errors=null){
-		if($errors){
-			if(!is_array($errors)){
-				$errors = [['message'=>$errors]];
-			}
-			$conform = new Conform([]);
-			$conform->errors = $errors;
-			throw new ConformException($conform);
-		}else{
-			throw new ConformException($this);
-		}
-	}
 }
 
-class ConformException extends ComplexException{}
+

@@ -12,38 +12,181 @@ There are a lot of combinations of this input field dependent logic which I thou
 
 
 
-## Use Introduction
+## Use
+
+### Smallest Example
+```php
+# Simplest example
+$Conform = new Conform(['age'=>' 10 ']);
+if($conformed = $Conform->get(['age'=>'f.int'])){
+	# in converting age to in, Conform has stripped the spaces
+	echo $conformed['age']; # => 10
+}
+
+```
 
 
-Form validation logic mostly follows patterns:
+### Setting The Input
+```php
+# You can set the input either at construction or after
+$Conform = new Conform(['name'=>'bob']);
+$Conform->input(['name'=>'sue']);
+
+# if you do not provide an input on the construction (input value is false), Conform will use $_GET and $_POST as defaults, with $_POST overwriting colliding $_GET keys
+$_POST = ['name'=>'bob'];
+$Conform = new Conform();
+$Conform->input(); # > ['name'=>'bob']
+
+# if you want to set the input to the default input after construction, you can use the `request_input` method
+$Conform->input(Conform::request_input());
+
+# the request_input has some additional logic about pulling input from the request that include both the use of a _json key and the handling of request type application/json.  To see more, read the function doc.
+```
+
+
+
+### Using Default Conformers
+There are three `conformers` that come auto-attached to a Conform instance: `\Grithin\Conform\Filter`, `\Grithin\Conform\Validate`, and \Grithin\Conform\GlobalFunction.  These are represented in rules by the prefixes `f`, `v`, and `g`.  
+
+To filter an input to an int, you can use `f.int`, but to validate the input is an int, you would use `v.int`.  Filter and validate can be used in conjuction because the value passed to a proceeding rule is the output from the preceeding rule.  For instance, we can filter to digits, and then check of the result is a valid int
+```php
+$Conform = new Conform(['age'=>'bob']);
+$rules = ['age'=>'f.digits, v.int'];
+
+if($conformed = $Conform->get($rules)){
+	# ...
+}else{
+	echo 'did not validate';
+}
+# > did not validate
+```
+
+`g` is used to reference a global function.
+```php
+$rules = ['age'=>'g.strtoupper'];
+```
+(The $Conform parameter will not be passed to the global function)
+
+
+### Adding Conformers
+Use the `conformer_add` function.
+```php
+$Conform->conformer_add($string_identity, $pathed_callable);
+```
+
+The pathed callable must be callable at the path provided by the rule (according to lodash style pathing for `_.get`)
+
+The callable receives the $Conform instance as the final parameter.
+
+You can add various types of conformers
+```php
+# a closure
+$Conform->conformer_add('upper', function($x){ return strtoupper($x);});
+$rules = ['name'=>'upper'];
+
+# an object with methods
+$Conform->conformer_add('f', new \Grithin\Conform\Filter);
+$rules = ['id'=>'f.int'];
+
+# a function reference
+$Conform->conformer_add('upper', 'strtoupper');
+$rules = ['name'=>'upper']; # note, this will error b/c strtoupper does not expect 2 parameters ($Conform instance is passed as the last parameter)
+```
+
+
+### Using Flags
+
+Form validation logic mostly follows patterns.
 
 For example, if the id input is an int, check it in the database:
 ```php
 $rules = ['id' => `!v.int, db.check`];
 ```
-The `!` says, ensure `id` input exists as an int before doing `db.check`.
-What if we had multiple fields, but we don't care to validate them if there was no id?
+The `!` says, ensure `id` input exists as an int before proceeding to the following rules on the field.  In this way, we don't attempt to check the database with input that might be some arbitrary string.
+
+What if we had multiple fields that relied on resolving a user id?  You can exit out of validation entirely:
 ```php
 $rules = [
-	'id' => `!!v.int, db.check`,
-	'name' => 'db.check_unique'
+	'id' => `!!v.int, !!db.check`,
+	'name' => 'db.matches_id'
 ];
 ```
-Here, the `!!` says, if `id` is not an int, exit with fail for the whole set of inputs.
+Here, the `!!` says, if `id` is not an int, exit with fail and parse no more fields.  And if `db.check` fails, also exit with fail.
 
 
-Sometimes there are optional fields that we still want to filter if they are present.  To do this, you can combine two operaters.
+Sometimes there are optional fields that we still want to filter if they are present.  To do this, you can combine two prefixes.
 ```php
 $rules = [
 	'email' => `?!v.filled, v.email`,
 ];
 ```
-This says, if the field is not filled, stop applying the rule, but don't show as an error.  This way, if the user left the field empty, there will be no email validation and no error, but if the user had filled out the email input, there will be email validation.
-
-The order of `!` and `?` doesn't matter.
+This says, if the field is not filled, stop applying the rule, but don't show as an error.  This way, if the user left the field empty, there will be no email validation and no error, but if the user had filled out the email input, there will be email validation.  (The order of `!` and `?` doesn't matter.)
 
 
-See [Rule Item Prefixes](#rule-item-prefixes)
+#### Special Cases
+There are prefixes for some rarer cases.
+
+What if we wanted to collect multiple validation errors for a field, but then not process some ending rules b/c of the errors?
+```php
+$rules = [
+	'email' => `v.filled, v.email, &db.check`,
+];
+```
+If the email field were not filled, this field rule set would result in an error for not being filled and an error for not validating as an email.  The `&` prefix indicates, if there were any errors in the previous part of the rule chain, stop execution of rules for the field.
+
+This can similarly be done for the entire form.  What if we wanted to collect errors across multiple fields, but wanted the presence of those errors to prevent some ending rule exectuion?
+
+```php
+$rules = [
+	'id' => `!v.int, db.check`,
+	'name' => 'v.name, &&db.matches_id'
+];
+```
+Here, by use of the `&&`, if there were any errors in any of the previous chain or previous fields, the proceeding rule will not execute.  
+
+Finally, some times the reverse of a rule is desired.  For instance, what if I wanted an email that was unique in the database but I just has a `email_exists` conformer function?
+```php
+$rules = [
+	'email' => `~db.email_exists`,
+];
+```
+Here, the `~` is like a "not", and indicates a lack of error indicates an error.
+
+
+
+### Rule Format And Parameters
+
+Parameters may be passed to a conformer in addition to the value of the input.
+```php
+$rules = ['age'=>'!v.range|18;60'];
+```
+Here we see the `|` separates the parameters from the function path, and the `;` separates the parameters from themselves.
+This form is the short form.  Sometimes the use of `!` or `;` can be problematic, so there are long forms
+
+```php
+# array seperated rules
+$rules = ['age'=>['!v.int', '!v.range|18;60']];
+# array separated parameters
+$rules = ['age'=>[['!v.range', 18, 60]]];
+# array separated callable
+$rules = ['age'=>[[['!', 'v.range'], 18, 60]]];
+```
+Note, with the array separated callable, the function itself can be a callable instead of a path.
+```php
+$rules = [
+	'age'=>[
+		[['!', function(){}], 18, 60]]
+	];
+```
+
+
+### Validate And Filter Alone
+You can use Validate and Filter pseudo statically, b/c they are traited with SingletonDefault.
+
+```php
+Filter::init()->url($url)
+Validate::init()->test('url', $url);
+```
 
 
 
@@ -61,164 +204,3 @@ The prefix can be some combination of the following
 
 
 
-## Examples
-```php
-$input = [
-	'sue'=>'sue',
-	'goner'=>'goner'
-];
-$rules = [
-	'sue'=>'',
-	'bob'=>'f.default|bob'
-];
-
-# instance creation with provided instance
-# input defaults to ~ $_POST and $_GET
-$conform = Conform::standard_instance($input);
-$conformed = $conform->validate($rules);
-#> {"sue": "sue", "bob": "bob"}
-
-# auto instance creation
-$conformed = Conform::validate($rules, $input);
-#> {"sue": "sue", "bob": "bob"}
-```
-
-
-
-
-
-
-
-
-
-
-There
-
-
-
-	-
-		-	this says, "ensure "
-
-
-
-
-
-_see source code for doc_
-
-
-
-
-
-## Validate And Filter Alone
-You can use Validate and Filter pseudo statically, b/c they are traited with SingletonDefault.
-
-```php
-Filter::init()->url($url)
-Validate::init()->url($url)
-```
-
-
-
-## Notes And Common Functions
-
-Comform uses the `\ConformException`  to pass information about errors in input values.  The common method `validate($rules)` takes a set of rules, and returns either the conformed input, or an exception if there was an error.  If there were errors, they are placed in `$Conform->errors`.  The output is also available in `$Conform->output`.  Errors and output is reset each time the various functions that call `fields_rules` are run (including `validate`).
-
-Common Functions
--	`validate` returns conformed output or a `\ConformException` exception if there is an error
--	`valid` returns true if input conforms or false if it does not.  `$Conform->output` and `$Conform->errors` are available.
--	`Conform::except($errors)`  throw a `\ConformException` with the errors provided
--	`$Conform->except()` throw a `\ConformException` with the current Conform instance
-
-
-
-## Standard Comformers And Custom Comformers
-
-All conformers exist in the Confrom instance in the `conformers` attribute dictionary.  They can be applied to a field by specifying their stringified depth path (see `underscore.get`).  For example:
--	`class_name.method` expects that `class_name` is the key in the `conformers` dictionary that points to an instance, and that instance has a method `method` that will be called on the field
--	`function`  that `class_name` is the key in the `function` dictionary that points to a function
-You can add a conformer to a `Conform` instance using `Conform->conformer_add()`
-
-
-By default,  with `standard_instance`, the `comformers` array gets two keys:
-1.	`f` : `\Grithin\Conform\Filter`
-2.	`v` : `\Grithin\Conform\Validate`
-
-
-The conformer function takes these parameters:
-```
-< field value >
-< context > :
-	instance: < Conform object >
-	field: < field name >
-	input: < reference to Conform.input >
-	output < reference to Conform.output >
-```
-
-The value of the field becomes whatever the comformer returns.  If the coformer just validates the value, it is still necessary for the conformer to return the value.
-
-If a value does not conform/validate, this is signalled by the conformer by throwing and exception.  The message of the exception becomes the error linked to the field.
-
-
-
-## Errors
-`$Conform->errors` exist as a numeric array.  Each element is formatted as:
-```coffee
-message: < error message >
-fields: [ < field list > ]
-rule: < details of rule causing error >
-params: < the parameters supplied to the rule, apart from the field value and the default appended parameters >
-```
-
-For a custom conformer, it is sufficient to throw a normal exception, in which case the exception error becomes the `error.message`.  To supply the other keys, use `\Grithin\ComplexException`.  Arrays supplied in `throw new \Grithin\ComplexException($array)` will fill the keys of the error.
-
-The exception that `Conform` returns is als a `\Grithin\ComplexException`.  To access the details of this exception, use `$exception->details`.  The `details` is the Conform instance itself.
-
-
-
-## Object Attirbutes
-`input` is set at instantiation.  It is what is used for filtering/validating.  
-`output` is reset each fieldset rules run.  It is the output of filtering/validating. It is a field-to-value keyed array.
-`errors` is accumulated on fieldset rules runs, and is not reset automatically.  If you reuse the same Conform object with different fields in a different context, you should reset  `errors`;
-
-
-
-
-## Accessing another instance conformer
-```php`
-	function conformer_function($v, $context){
-		$context['instance']->conformers['name']->METHOD($v, $context);
-	}
-```
-
-
-
-## Integration
-### API
-`\Grithin\Conform` is integrated into `\Grithin\Api`.  See the documentation there
-
-
-### Other
-Custom implementations of `\Grithin\Template` use a javascript interface between backend data and the front end logic through a JS variable `site` (set up normally in the `top.php` template), where Template supplies `site.backend_data`.
-
-```
-try{
-	Conform::validate(['user_field'=>'!v.filled'])
-
-	// process input
-
-}catch{\Exception $e}{
-	$page_errors = $e->details->errors;
-
-	// Using \Grithin\Template set up to handle errors
-	foreach($pages_errors as $error){
-		$Template->error_add($error['message']);
-	}
-
-	// Adding directly to backend_data in \Grithin\Template
-	$this->backend_data['errors'] = $pages_errors;
-
-
-	$Template->end_current();
-}
-
-```

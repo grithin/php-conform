@@ -17,18 +17,15 @@ class Validate{
 	}
 
 	/** true or false return instead of exception.  Calling statically won't work on methods requiring $this (date, time) */
-	function test($method, $value){
-		try{
-			if($this){
-				call_user_func_array(array($this, $method), array_slice(func_get_args(),1));
-			}else{
-				call_user_func_array(array(__CLASS__, $method), array_slice(func_get_args(),1));
-			}
-
-			return true;
-		}catch(\Exception $e){
+	public function test($method, $value){
+		$method_arguments = array_slice(func_get_args(),1);
+		$pseudo_conform = new ValidateTestConform;;
+		$method_arguments[] = $pseudo_conform;
+		call_user_func_array(array($this, $method), $method_arguments);
+		if($pseudo_conform->error){
 			return false;
 		}
+		return true;
 	}
 	static function error($details=''){
 		if(!is_scalar($details)){
@@ -38,258 +35,245 @@ class Validate{
 		}
 	}
 
-	/** used for converting true/flase functions into validaters */
-	function callable_is_true($v, $fn, $fail_message){
-		$args = func_get_args(); #< value, fn, fail_message, additional args, context
-		array_pop($args); # clear context added by Conform
-
-		$args = array_slice($args, 3);
-		array_unshift($args, $v);
-
-		$value = call_user_func_array($fn,$args);
-		if(!$value){
-			throw new Exception($fail_message);
-		}
-		return $v;
-	}
 
 //+	basic validators{
 
-	function blank($v){
+	function blank($v, $Conform){
 		if($v !== ''){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function not_blank($v){
+	function not_blank($v, $Conform){
 		if($v === ''){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** comparison using `!=` */
-	function loose_value($v, $x){
+	function loose_value($v, $x, $Conform){
 		if($v != $x){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function value($v, $x){
+	function value($v, $x, $Conform){
 		if($v !== $x){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function true($v){
+	function true($v, $Conform){
 		if(!(bool)$v){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function false($v){
+	function false($v, $Conform){
 		if((bool)$v){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function exists($v, $context){
-		if(!array_key_exists($context['field'], $context['input']) and !array_key_exists($context['field'], $context['output'])){
-			self::error();
+	/** check if the field exists in either the current input or the curernt output (since a rule can generate a new field) */
+	function exists($v, $Conform){
+		if(!array_key_exists($Conform->field, $Conform->input) and !array_key_exists($Conform->field, $Conform->output)){
+			$Conform->error();
 		}
 		return $v;
 	}
-	function filled($v){
+	function filled($v, $Conform){
 		if($v === '' || $v === null){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function int($v){
+	function int($v, $Conform){
 		if(!Tool::is_int($v)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function absolute($v){
+	function absolute($v, $Conform){
 		if(abs($v) != $v){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** combinatory validator: is int? is absolute value? is not zero? */
-	function id($v){
+	function id($v, $Conform){
 		self::int($v);
 		self::absolute($v);
 		self::true($v);
 		return $v;
 	}
-	function float($v){
+	function float($v, $Conform){
 		if(filter_var($v, FILTER_VALIDATE_FLOAT) === false){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function characters_acceptible($v, $regex){
+	function characters_acceptible($v, $regex, $Conform){
 		preg_match_all('/[^'.Strings::preg_quote_delimiter($regex).']/', $v, $matches);
 		if(!empty($matches[0])){
 			throw new \Exception('Unacceptable characters: '.implode($matches[0]));
 		}
 		return  $v;
 	}
-	function regex($v,$regex){
+	function regex($v,$regex, $Conform){
 		if(!preg_match($regex, $v)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** $v is a key in $hash */
-	function key_in($v, $hash){
+	function key_in($v, $hash, $Conform){
 		if(!isset($hash[$value])){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 	/** $v is in $a */
-	function in($v, $a){
+	function in($v, $a, $Conform){
 		if(!in_array($v,$a)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function email($v){
+	function email($v, $Conform){
 		if(!filter_var($v, FILTER_VALIDATE_EMAIL)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** Ex: joe johnson <joe@bob.com> */
-	function emailLine($v){
+	function emailLine($v, $Conform){
 		$v = trim($v);
 		if(!self::test('email', $v)){
 			if(preg_match('@^[^<]*?<[^>]+>$@', $v)){ # it matches the form of a name + email line
 				$email = $this->filter->email($v);
 				if(!self::test('email', $email)){ # ensure the address part is conforming
-					self::error();
+					$Conform->error();
 				}
 				return $v;
 			}else{
-				self::error();
+				$Conform->error();
 			}
 		}
 		return $v;
 	}
-	function url($v){
+	function url($v, $Conform){
 		if(!filter_var($v, FILTER_VALIDATE_URL)){
-			self::error();
+			$Conform->error();
 		}
 		# the native filter doesn't even check if there is at least one dot (tld detection)
 		if(strpos($v,'.') == false){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 #++ Numbers {
 
-	function range($v,$min,$max){
+	function range($v,$min,$max, $Conform){
 		self::min($v, $min);
 		self::max($v, $max);
 		return $v;
 	}
-	function min($v, $min){
+	function min($v, $min, $Conform){
 		if((float)$v < (float)$min){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function gte($v, $min){
+	function gte($v, $min, $Conform){
 		return self::min($v,$min);
 	}
-	function gt($v, $min){
+	function gt($v, $min, $Conform){
 		if((float)$v < (float)$min){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function max($v, $max){
+	function max($v, $max, $Conform){
 		if((float)$v > (float)$max){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function lte($v, $max){
+	function lte($v, $max, $Conform){
 		return self::max($v, $max);
 	}
-	function lt($v, $max){
+	function lt($v, $max, $Conform){
 		if((float)$v >= (float)$max){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 #++ }
 
-	function length($v, $length){
+	function length($v, $length, $Conform){
 		if(mb_strlen($v) != $length){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function length_min($v, $min){
+	function length_min($v, $min, $Conform){
 		if(mb_strlen($v) < $min){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function length_gte($v, $min){
+	function length_gte($v, $min, $Conform){
 		return self::length_min($v, $min);
 	}
-	function length_gt($v, $min){
+	function length_gt($v, $min, $Conform){
 		if(mb_strlen($v) <= $min){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function length_max($v, $max){
+	function length_max($v, $max, $Conform){
 		if(mb_strlen($v) > $max){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function length_lte($v, $max){
+	function length_lte($v, $max, $Conform){
 		return self::length_gte($v, $max);
 	}
-	function length_lt($v, $max){
+	function length_lt($v, $max, $Conform){
 		if(mb_strlen($v) >= $max){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function length_range($v, $min, $max){
+	function length_range($v, $min, $max, $Conform){
 		self::length_min($v, $min);
 		self::length_max($v, $max);
 		return $v;
 	}
-	function timezone($v){
+	function timezone($v, $Conform){
 		try{
 			return new \DateTimeZone($v);
 		}catch(\Exception $e){
-			self::error();
+			$Conform->error();
 		}
 	}
-	function time($v){
+	function time($v, $Conform){
 		try{
 			return new Time($v);
 		}catch(\Exception $e){
-			self::error();
+			$Conform->error();
 		}
 	}
 	/** validate that a string of form 'YYYY-mm-dd' is an actual date */
-	function date_exists($v){
+	function date_exists($v, $Conform){
 		list($y,$m,$d) = explode('-', $v);
 		if(!Time::validate($y,$m,$d)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
@@ -302,15 +286,15 @@ class Validate{
 		$Time =  call_user_func_array([$this,'time'], func_get_args());
 		return $Time->day_start();
 	}
-	function time_max($v, $max){
+	function time_max($v, $max, $Conform){
 		if($v > new Time($max)){
-			self::error(['details'=>$max]);
+			$Conform->error(['details'=>$max]);
 		}
 		return $v;
 	}
-	function time_min($v, $min){
+	function time_min($v, $min, $Conform){
 		if($v > new Time($min)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
@@ -320,69 +304,69 @@ class Validate{
 
 	@note To get mime: $mime = \Grithin\File::mime($_FILES[$name]['tmp_name']);
 	*/
-	function mime($v,$mimes){
+	function mime($v,$mimes, $Conform){
 		$mimes = Arrays::toArray($mimes);
 		foreach($mimes as $matchMime){
 			if(preg_match('@'.preg_quote($matchMime).'$@', $v)){
 				return $v;
 			}
 		}
-		self::error();
+		$Conform->error();
 	}
 	/** inverter function.  May want to use `~` instead */
-	function not_mime($v,$mimes){
+	function not_mime($v,$mimes, $Conform){
 		if(self::test('mime', $v, $mimes)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 //+	}
 
-	function callback($v,$callback){
+	function callback($v,$callback, $Conform){
 		return $callback($v);
 	}
-	function title($v){
+	function title($v, $Conform){
 		$v = $this->filter->regex_remove($v,'@[^a-z0-9_\- \']@i');
 		return self::length_min($v,2);
 	}
-	function ip4($v){
+	function ip4($v, $Conform){
 		return self::regex($v,'@[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}@');
 	}
-	function ip($v){
+	function ip($v, $Conform){
 		if(@inet_pton($v) === false){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
-	function age_max($v, $max){
+	function age_max($v, $max, $Conform){
 		self::max($this->filter->age($v), $max);
 		return $v;
 	}
-	function age_min($v, $min){
+	function age_min($v, $min, $Conform){
 		self::min($this->filter->age($v), $min);
 		return $v;
 	}
-	function password($v){
+	function password($v, $Conform){
 		return self::length_range($v,3,50);
 	}
-	function name($v){
+	function name($v, $Conform){
 		if(!preg_match('@^[a-z \']{2,}$@i',$v)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** 5 or 5+4 zip */
-	function zip($v){
+	function zip($v, $Conform){
 		if(!preg_match("/^([0-9]{5})(-[0-9]{4})?$/i",$v)) {
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 	/** USA phone */
-	function phone($v){
+	function phone($v, $Conform){
 		$v = $this->filter->digits($v);
 		self::filled($v);
 
@@ -390,73 +374,73 @@ class Validate{
 			$v = substr($v,1);
 		}
 		if(mb_strlen($v) == 7){
-			self::error(['type'=>'phone_area_code']);
+			$Conform->error(['type'=>'phone_area_code']);
 		}
 		if(mb_strlen($v) != 10){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** checks of the phone matches the international format - (converts spaces to "-") */
-	function phone_international_format($v){
+	function phone_international_format($v, $Conform){
 		$v = trim($v);
 		$v = preg_replace('@ +@', '-', $v);
 		if(!preg_match('@^\+[0-9]+\-([0-9]+\-?)+$@', $v)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	/** Filter and ensure phone number.  Returns number including any non-numbers as spaces, condensed when in sequence */
-	function international_phone($v){
+	function international_phone($v, $Conform){
 		$digits = $this->filter->digits($v);
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
 		if(mb_strlen($digits) < 8){
-			self::error();
+			$Conform->error();
 		}
 		# max https://www.wikiwand.com/en/E.164
 		if(mb_strlen($digits) > 15){
-			self::error();
+			$Conform->error();
 		}
 
 		return $this->filter->phone($v);
 	}
 	/** either find a "+" in the string, or prefix with "1" (as in "+1" for USA) */
-	function international_phone_plus_or_us($v){
+	function international_phone_plus_or_us($v, $Conform){
 		if(strpos($v, '+') === false){
 			$v = '1'.$v;
 		}
 		return self::international_phone($v);
 	}
-	function phone_possible($v){
+	function phone_possible($v, $Conform){
 		$digits = $this->filter->digits($v);
 		self::filled($digits);
 
 		# Smallest international phone number: For Solomon Islands its 5 for fixed line phones. - Source (country code 677)
 		if(mb_strlen($digits) < 5){
-			self::error();
+			$Conform->error();
 		}
 		# max https://www.wikiwand.com/en/E.164
 		if(mb_strlen($digits) > 15){
-			self::error();
+			$Conform->error();
 		}
 		return $this->filter->phone($v);;
 	}
 
 	/** checks that html tags have tag integrity */
 	/** @note haven't used since 2007, no idea if it works */
-	function htmlTagContextIntegrity($value){
+	function htmlTagContextIntegrity($value, $Conform){
 		self::$tagHierarchy = [];
 		preg_replace_callback('@(</?)([^>]+)(>|$)@',array(__CLASS__, 'htmlTagContextIntegrityCallback'),$value);
 		//tag hierarchy not empty, something wasn't closed
 		if(self::$tagHierarchy){
-			self::error();
+			$Conform->error();
 		}
 		return $value;
 	}
 	static $tagHierarchy = [];
-	function htmlTagContextIntegrityCallback($match){
+	function htmlTagContextIntegrityCallback($match, $Conform){
 		preg_match('@^[a-z]+@i',$match[2],$tagMatch);
 		$tagName = $tagMatch[0];
 
@@ -468,44 +452,44 @@ class Validate{
 		}else{
 			$lastTagName = array_pop(self::$tagHierarchy);
 			if($tagName != $lastTagName){
-				self::error();
+				$Conform->error();
 			}
 		}
 	}
 
-	function db_in_table_field($v,$table,$field, $db){
+	function db_in_table_field($v,$table,$field, $db, $Conform){
 		if(!$db->check($table, [$field=>$v])){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 
 
 	//++ relies on something like Grithin/Db {
-	function db_in_table($v,$table, $db){
+	function db_in_table($v,$table, $db, $Conform){
 		return self::db_in_table_field($v, $table, 'id', $db);
 	}
-	function db_not_in_table(&$v,$table,$field='id'){
+	function db_not_in_table(&$v,$table,$field='id', $Conform){
 		if(self::test('db_in_table_field', $v, $table, 'id', $db)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
 	//++ }
 
 	//+ relies on something like Grithin/phpbase {
-	function json($v){
+	function json($v, $Conform){
 		return call_user_func_array([$this,'json_is'], func_get_args());
 	}
-	function json_is($v){
+	function json_is($v, $Conform){
 		Tool::json_decode($v);
 		return $v;
 	}
-	function json_parse(){
+	function json_parse($v, $Conform){
 		return Tool::json_decode($v);
 	}
 	/** either input is data structure, which will be conformed to JSON, or input already exists as JSON */
-	function json_ensure($x){
+	function json_ensure($x, $Conform){
 		if(is_array($x)){
 			return Tool::json_encode($x);
 		}else{
@@ -513,24 +497,31 @@ class Validate{
 		}
 	}
 	//+ }
-	function is_array($v){
+	function is_array($v, $Conform){
 		if(!is_array($v)){
-			self::error();
+			$Conform->error();
 		}
 		return $v;
 	}
-	function count_min($x, $min){
+	function count_min($x, $min, $Conform){
 		self::is_array($x);
 		if(count($x) < $min){
-			self::error();
+			$Conform->error();
 		}
 		return $x;
 	}
-	function count_max($x, $max){
+	function count_max($x, $max, $Conform){
 		self::is_array($x);
 		if(count($x) > $max){
-			self::error();
+			$Conform->error();
 		}
 		return $x;
+	}
+}
+
+class ValidateTestConform{
+	public $error = false;
+	public function error($details, $Conform){
+		$this->error = true;
 	}
 }

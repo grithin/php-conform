@@ -56,7 +56,7 @@ class ConformTests extends TestCase{
 			'float'=>'f.int ~v.int e'
 		];
 		$v = $this->conform->fields_rules($rules);
-		#Debug::out($this->conform->standardise_errors($this->conform->errors()));
+		#Debug::out($this->conform->errors_standardized($this->conform->errors()));
 		$this->assertEquals(1, 1);
 		$this->conform->clear();
 	}
@@ -200,7 +200,7 @@ class ConformTests extends TestCase{
 			'price'=>''
 		];
 		$output = $this->conform->fields_rules($rules);
-		$errors = $this->conform->standardise_errors();
+		$errors = $this->conform->errors_standardized();
 
 		$this->assertEquals($output, ["float" => 12]);
 		$this->conform->clear();
@@ -215,7 +215,7 @@ class ConformTests extends TestCase{
 			'price'=>''
 		];
 		$output = $this->conform->fields_rules($rules);
-		$errors = $this->conform->standardise_errors();
+		$errors = $this->conform->errors_standardized();
 
 		$this->assertEquals($output, ["float" => 12,"int_string" => " 2", "price" => "\$14,240.02"]);
 		$this->conform->clear();

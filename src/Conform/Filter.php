@@ -221,21 +221,21 @@ class Filter{
 		return $callback($v);
 	}
 
-	//++ context-reliant functions  {
+	//++ Conform-reliant functions  {
 
 	/** place the value into a new input key, nulling the current */
 	/** About
 	-	Nulls existing key value.  However, output will still contain the old key
 	-	Will set the output key.  Validations for new key should come after, or their output will be overwritten
 	*/
-	function rekey($v, $key, $context){
-		$this->copy($v, $key, $context);
+	function rekey($v, $key, $Conform){
+		$this->copy($v, $key, $Conform);
 		return null;
 	}
 	/** Copy value to a different key */
-	function copy($v, $key, $context){
-		$context['instance']->input[$key] = $v;
-		$context['instance']->output[$key] = $v;
+	function copy($v, $key, $Conform){
+		$Conform->input[$key] = $v;
+		$Conform->output[$key] = $v;
 		return $v;
 	}
 
