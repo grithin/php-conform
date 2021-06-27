@@ -80,8 +80,8 @@ class Conform{
 	}
 	/** get std errors from fields_rules */
 	public function errors_from($field_map){
-		$this->fields_rules_apply($field_map);
-		return $this->errors_standardized();
+		$this->get($field_map);
+		return $this->errors;
 	}
 
 
@@ -189,6 +189,10 @@ class Conform{
 	}
 
 
+	/** logic flow flag */
+	protected $flag = false;
+
+
 	/** get 	*/
 	/** params
 	< field_map >
@@ -205,32 +209,30 @@ class Conform{
 			foreach($field_map as $field=>$rules){
 				$output = $this->field_rules_apply($field, $rules);
 
-				if($this->error){
-					if(isset($this->error['type'])){
-						if($this->error['type'] == 'break'){
-							# ! indicated to break out of current field
-							continue;
-						}elseif($this->error['type'] == 'continuity'){
-							# & indicated to break out of current field
-							continue;
-						}
+				if($this->flag){
+					if($this->flag == 'break'){
+						# ! indicated to break out of current field
+						$this->flag = false;
+						continue;
+					}elseif($this->flag == 'continuity'){
+						# & indicated to break out of current field
+						$this->flag = false;
+						continue;
 					}
 					return;
 				}
 
-				if(!$this->field_errors($field) && $field){ # Don't add empty fields to output
+				if(!in_array($field, $this->fields_with_error)){
 					$this->output[$field] = $output;
 				}
 			}
 		};
 		$field_map_loop($field_map);
 
-		if($this->error){
+		if($this->flag){
+			# flag that gets here is the break_all flag
 			# a !! indicated to break out of the entire fields validation loop
-			$was_break_all_flag = isset($this->error['type']) && $this->error['type'] == 'break_all';
-			if(!$was_break_all_flag){
-				Debug::toss(['message'=>'unhandled error', 'error'=>$this->error]);
-			}
+			$this->flag = false;
 		}
 
 		#+ only return output for fields that aren't associated with errors.  Since a rule for one field can include association for another field, must check the current errors {
@@ -240,6 +242,8 @@ class Conform{
 
 		return Arrays::omit($this->output, $this->fields_with_error);
 	}
+
+
 
 
 	/** magic get for `field` */
@@ -274,10 +278,10 @@ class Conform{
 		foreach($rules as $rule){
 			# handle continuity
 			if($rule['flags']['continuity'] && $this->field_errors($field)){
-				$this->error(['type'=>'continuity']);
+				$this->flag = 'continuity';
 				return;
 			}elseif($rule['flags']['full_continuity'] && $this->errors){
-				$this->error(['type'=>'continuity']);
+				$this->flag = 'continuity';
 				return;
 			}
 
@@ -296,7 +300,7 @@ class Conform{
 			if(!empty($rule['flags']['not'])){
 				if(!$this->error){
 					# the rule was supposed to fail, and did not, add error
-					$this->error(['type'=>'not']);
+					$this->error(['type'=>'~']);
 				}else{
 					# the rule was supposed to fail, and did so, clear the error
 					$this->error_unset();
@@ -305,7 +309,14 @@ class Conform{
 			if($this->error){
 				if(empty($rule['flags']['optional'])){
 					$this->error['rule'] = $rule;
-					$error = new Conform\Error($this->error['message'], $this->error['fields'], $this->error['type'], $this->error['rule'], $this->error['params']);
+
+					if(!$this->error['type']){
+						$this->error['type'] = $rule['fn_path'];
+					}elseif($this->error['type'] == '~'){ # the not-ed error will not a custom error message, so just use ~fn_path
+						$this->error['type'] = '~'.$rule['fn_path'];
+					}
+
+					$error = new Conform\Error($this->error['message'], $this->error['fields'], $this->error['type']);
 
 					$this->fields_with_error_add($this->error['fields']);
 
@@ -313,11 +324,11 @@ class Conform{
 					$this->error_unset();
 				}
 				if(!empty($rule['flags']['break'])){
-					$this->error['type'] = 'break';
+					$this->flag = 'break';
 					return;
 				}
 				if(!empty($rule['flags']['break_all'])){
-					$this->error['type'] = 'break_all';
+					$this->flag = 'break_call';
 					return;
 				}
 			}
@@ -345,9 +356,6 @@ class Conform{
 
 
 	/**
-	@param	rules	string or array
-		Ordered mapping of rules to field names
-
 		Rules of one field name are separated in the form
 		-	'rule rule rule', wherein the split will match `[\s,]+`
 		-	[rule, rule, rule]

@@ -5,29 +5,7 @@ use PHPUnit\Framework\TestCase;
 use \Grithin\Debug;
 use \Grithin\Time;
 use \Grithin\Arrays;
-
-
-# http://stackoverflow.com/questions/24316347/how-to-format-var-export-to-php5-4-array-syntax
-# useful for printing out output for assertEquals
-function var_export54($var, $indent="") {
-		switch (gettype($var)) {
-			case "string":
-				return '"' . addcslashes($var, "\\\$\"\r\n\t\v\f") . '"';
-			case "array":
-				$indexed = array_keys($var) === range(0, count($var) - 1);
-				$r = [];
-				foreach ($var as $key => $value) {
-						$r[] = "$indent    "
-							. ($indexed ? "" : var_export54($key) . " => ")
-							. var_export54($value, "$indent    ");
-				}
-				return "[\n" . implode(",\n", $r) . "\n" . $indent . "]";
-			case "boolean":
-				return $var ? "TRUE" : "FALSE";
-			default:
-				return var_export($var, TRUE);
-		}
-}
+use \Grithin\Conform;
 
 
 
@@ -36,7 +14,7 @@ function var_export54($var, $indent="") {
 */
 class ConformTests extends TestCase{
 	function __construct(){
-		$this->input = $input = [
+		$_GET = [
 			'bob'=>'bob',
 			'email'=>'bob@bob.com',
 			'price'=>'$14,240.02',
@@ -44,96 +22,130 @@ class ConformTests extends TestCase{
 			'int'=>2,
 			'int_string'=>' 2',
 		];
-		$this->conform = new \Grithin\Conform($input);
-		$this->conform->add_conformer('f',\Grithin\Conform\Filter::init());
-		$this->conform->add_conformer('v',new \Grithin\Conform\Validate);
-		$e = (function(){ throw new \Exception;});
-		$this->conform->add_conformer('e',$e);
+
+		$_POST = ['int'=>3];
+
+		$this->Conform = new Conform;
+		$this->Conform->conformer_add('e', function($x, $Conform){ $Conform->error(['type'=>'e', 'message'=>'error']); });
 	}
-	function test_sequence(){
+	function test_input(){
+		$get = $_GET;
+		$post = $_POST;
+
+		$Conform = new Conform;
+		$this->assertEquals(3, $Conform->input['int']);
+		$this->assertEquals('2', $Conform->input['int_string']);
+
+		$_GET['_json'] = json_encode(array_merge($_GET, ['bob'=>'sue', 'bill'=>'bob']));
+		$Conform = new Conform;
+		$this->assertEquals('sue', $Conform->input['bob']);
+		$this->assertEquals('bob', $Conform->input['bill']);
+
+		$_POST['_json'] = json_encode(array_merge($_POST, ['int'=>4, 'bill'=>'bob2']));
+		$Conform = new Conform;
+		$this->assertEquals(4, $Conform->input['int']);
+		$this->assertEquals('bob2', $Conform->input['bill']);
+
+		$_GET = $get;
+		$_POST = $post;
+	}
+
+	function test_error_format(){
+		$Conform = new Conform;
 		$rules = [
 			'bob'=>'f.int',
-			'float'=>'f.int ~v.int e'
+			'float'=>'f.int, ~v.int'
 		];
-		$v = $this->conform->fields_rules($rules);
-		#Debug::out($this->conform->errors_standardized($this->conform->errors()));
-		$this->assertEquals(1, 1);
-		$this->conform->clear();
+		$v = $Conform->get($rules);
+		$this->assertEquals(new \Grithin\Conform\Error('~v.int', ['float'], '~v.int'), $Conform->errors[0]);
 	}
+
+	function test_sequence(){
+		$Conform = new Conform;
+		$rules = [
+			'bob'=>'f.int',
+			'float'=>'f.int, ~v.int'
+		];
+		$v = $Conform->get($rules);
+		$this->assertEquals(false, $v);
+
+		$this->assertEquals(1, count($Conform->errors));
+	}
+
 	function test_field_continuity_1(){
+
 		$rules = [
 			'float'=>'v.email e'
 		];
-		$errors = $this->conform->errors_from($rules);
-		$this->assertTrue(is_array($errors[1]));
-		$this->assertEquals($errors[1]['type'], 'e');
-		$this->conform->clear();
+		$v = $this->Conform->get($rules);
+		$this->assertEquals(false, $v);
+		$this->assertEquals($this->Conform->errors[0]['type'], 'v.email');
+		$this->assertEquals($this->Conform->errors[1]['type'], 'e');
 	}
+
 	function test_field_continuity_2(){
 		$rules = [
 			'float'=>'v.email &e'
 		];
-		$errors = $this->conform->errors_from($rules);
-		$this->assertEquals(count($errors), 1);
-		$this->conform->clear();
+		$errors = $this->Conform->get($rules);
+		$this->assertEquals(count($this->Conform->errors), 1);
 	}
+
 	function test_field_continuity_3(){
 		$rules = [
 			'float'=>'v.float &e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 1);
 		$this->assertEquals($errors[0]['type'], 'e');
-		$this->conform->clear();
 	}
+
 
 	function test_full_continuity_1(){
 		$rules = [
 			'bob'=>'f.int',
-			'float'=>'e'
+			'float'=>'&e'
 		];
-		$errors = $this->conform->errors_from($rules);
-		$this->assertTrue(is_array($errors[0]));
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals($errors[0]['type'], 'e');
-		$this->conform->clear();
 	}
+
 	function test_full_continuity_2(){
 		$rules = [
 			'bob'=>'v.email',
 			'float'=>'&&e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 1);
 		$this->assertEquals($errors[0]['type'], 'v.email');
-		$this->conform->clear();
 	}
+
 	function test_full_continuity_3(){
 		$rules = [
 			'bob'=>'v.email',
 			'float'=>'e &&e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 2);
-		$this->conform->clear();
 	}
+
 	function test_full_continuity_4(){
 		$rules = [
 			'bob'=>'f.int',
 			'float'=>'&&e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 1);
 		$this->assertEquals($errors[0]['type'], 'e');
-		$this->conform->clear();
 	}
+
 
 	function test_field_break(){
 		$rules = [
 			'float'=>'e !e e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 2);
-		$this->conform->clear();
 	}
 
 	function test_break_all_1(){
@@ -141,55 +153,66 @@ class ConformTests extends TestCase{
 			'bob'=>'v.int',
 			'float'=>'e !!e e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 3);
-		$this->conform->clear();
 	}
+
 	function test_break_all_2(){
 		$rules = [
 			'bob'=>'!!v.int',
 			'float'=>'e !!e e'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 1);
-		$this->conform->clear();
 	}
+
+
 
 	function test_not(){
 		$rules = [
 			'bob'=>'~v.int',
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 0);
-		$this->conform->clear();
 	}
+
+
 
 	function test_optional(){
 		$rules = [
 			'bob'=>'?v.int',
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 0);
-		$this->conform->clear();
+	}
+
+
+
+	function test_optional_sequence(){
+		$rules = [
+			'bob'=>'?v.int v.int',
+		];
+		$errors = $this->Conform->errors_from($rules);
+		$this->assertEquals(count($errors), 1);
 	}
 
 	function test_optional_break_1(){
 		$rules = [
-			'bob'=>'?v.int v.int',
+			'bob'=>'?!v.int v.int',
 		];
-		$errors = $this->conform->errors_from($rules);
-		$this->assertEquals(count($errors), 1);
-		$this->conform->clear();
+		$errors = $this->Conform->errors_from($rules);
+		$this->assertEquals(count($errors), 0);
 	}
 
 	function test_optional_break_2(){
 		$rules = [
-			'bob'=>'?!v.int v.int',
+			'bob'=>'?!!v.int v.int',
+			'float' => 'v.int'
 		];
-		$errors = $this->conform->errors_from($rules);
+		$errors = $this->Conform->errors_from($rules);
 		$this->assertEquals(count($errors), 0);
-		$this->conform->clear();
 	}
+
 
 	function test_output_1(){
 		$rules = [
@@ -199,11 +222,10 @@ class ConformTests extends TestCase{
 			'int_string'=>'!!v.int',
 			'price'=>''
 		];
-		$output = $this->conform->fields_rules($rules);
-		$errors = $this->conform->errors_standardized();
+		$this->Conform->get($rules);
+		$errors = $this->conform->errors;
 
-		$this->assertEquals($output, ["float" => 12]);
-		$this->conform->clear();
+		$this->assertEquals($this->Conform->output, ["float" => 12]);
 	}
 
 	function test_output_2(){
@@ -214,10 +236,8 @@ class ConformTests extends TestCase{
 			'int_string'=>'~!!v.int',
 			'price'=>''
 		];
-		$output = $this->conform->fields_rules($rules);
-		$errors = $this->conform->errors_standardized();
+		$this->Conform->get($rules);
 
-		$this->assertEquals($output, ["float" => 12,"int_string" => " 2", "price" => "\$14,240.02"]);
-		$this->conform->clear();
+		$this->assertEquals($this->Conform->output, ["float" => 12,"int_string" => " 2", "price" => "\$14,240.02"]);
 	}
 }

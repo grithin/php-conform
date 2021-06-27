@@ -180,6 +180,19 @@ $rules = [
 ```
 
 
+### Retrieving Partial Output
+Although `get` returns false if there were any errors, the Conform output for the fields that did not have errors is available with `$Conform->output`
+```php
+$input = ['name' => 'bob', 'age' => 2];
+$Conform = new Conform($input);
+$conformed = $Conform->get(['name'=>'v.int', 'age'=>'v.int']);
+# > false
+$Conform->output;
+# > ['age'=>2]
+
+```
+
+
 ### Validate And Filter Alone
 You can use Validate and Filter pseudo statically, b/c they are traited with SingletonDefault.
 
