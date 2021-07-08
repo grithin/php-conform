@@ -192,6 +192,109 @@ $Conform->output;
 
 ```
 
+### Using The Errors
+Errors are available from Conform and in the form of \Grithin\Conform\Error
+
+```php
+$input = ['year' => 'bob', 'age' => 2, 'number'=>'bill'];
+$Conform = new Conform($input);
+$conformed = $Conform->get([
+	'year'=>'v.int',
+	'age'=>'v.int',
+	'number'=>'v.int'
+]);
+
+foreach($Conform->errors() as $error){
+	var_export((array)$error);
+}
+
+/*
+array (
+  'message' => 'v.int',
+  'fields' =>
+  array (
+    0 => 'year',
+  ),
+  'type' => 'v.int',
+)array (
+  'message' => 'v.int',
+  'fields' =>
+  array (
+    0 => 'number',
+  ),
+  'type' => 'v.int',
+)
+*/
+```
+
+The error objects can be used as arrays.  There are three properties
+-	type
+-	message
+-	fields
+
+It is left up to the implementor to change the message of the built in validation errors.
+
+You can select the field or fields you want the errors for
+```php
+//...
+# get all the errors for the field "year"
+$Conform->field_errors('year');
+# get all the errors for the fields "year" and "number"
+$Conform->fields_errors(['year', 'number']);
+```
+
+
+### Making Validation
+Within a conformer, you can signal an error
+```php
+$conformer = function($v, $Conform){
+	$Conform->error('Error Message');
+	return $v;
+};
+$Conform->conformer_add('conformer', $conformer);
+```
+A few things to note here
+-	the $Conform instance is passed in as the last parameter to the conformer function
+-	you can still return the value, even when there is an error, so that further validation can be done
+
+By default, the error `type` will be whatever the path to the validator function was.  But, you set your own type, and you can even specify the fields if the error is linked to multiple.
+```php
+$conformer = function($v, $Conform){
+	$error = [
+		'message' => 'Error Message',
+		'type' => 'custom_type',
+		'fields' => ['name', 'age']
+	];
+	$Conform->error($error);
+	return $v;
+};
+$Conform->conformer_add('conformer', $conformer);
+```
+
+The current field is added into the fields array.
+
+
+#### Context Data
+Sometimes it is useful to know context data within a conform function.  To access context data, you can use the `$Conform` instance that is passed in as the last parameter to conformer functions.
+
+The context data that is useful:
+-	`->field` the current field that is being conformed
+-	`->output` the current output of the conform process (ie, fields that have been conformed)
+-	`->input` the current input
+
+Let's use a conformer that relies on the output of a previous field (field must come prior), and the input of another field
+```php
+$auth = function($v, $Conform){
+	$query = ['id'=>$Conform->output['id'], 'password'=>$conform->input['password']]
+	if(!Db::check($query)){
+		$Conform->error('Password and id did not match');
+	}
+	return $v;
+};
+```
+
+
+
 
 ### Validate And Filter Alone
 You can use Validate and Filter pseudo statically, b/c they are traited with SingletonDefault.
