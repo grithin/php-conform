@@ -8,7 +8,7 @@ Back around 2009, I wanted to build something that would resolve having to code 
 -	if x field failed one step of validation, don't validate it further
 -	if x field failed validation, stop validating all input and return with error
 
-There are a lot of combinations of this input field dependent logic which I thought could be simplified in expression.  So, I created this class, which has changed through the years.  I've recently updated it to be more compatible for others to use (no short tags, better code standard).
+There are a lot of combinations of this input field dependent logic which I thought could be simplified in expression.  So, I created this class, which uses [logic flags](#using-flags).  
 
 
 
@@ -48,7 +48,7 @@ $Conform->input(Conform::request_input());
 ### Using Default Conformers
 There are three `conformers` that come auto-attached to a Conform instance: `\Grithin\Conform\Filter`, `\Grithin\Conform\Validate`, and \Grithin\Conform\GlobalFunction.  These are represented in rules by the prefixes `f`, `v`, and `g`.  
 
-To filter an input to an int, you can use `f.int`, but to validate the input is an int, you would use `v.int`.  Filter and validate can be used in conjuction because the value passed to a proceeding rule is the output from the preceeding rule.  For instance, we can filter to digits, and then check of the result is a valid int
+To filter an input to an int, you can use `f.int`, but to validate the input is an int, you would use `v.int`.  Filter and validate can be used in conjuction because the value passed to a proceeding rule is the output from the preceeding rule.  For instance, we can filter to digits, and then check if the result is a valid int
 ```php
 $Conform = new Conform(['age'=>'bob']);
 $rules = ['age'=>'f.digits, v.int'];

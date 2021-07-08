@@ -458,7 +458,7 @@ class Validate{
 	}
 
 	function db_in_table_field($v,$table,$field, $db, $Conform){
-		if(!$db->check($table, [$field=>$v])){
+		if(!$db->exists($table, [$field=>$v])){
 			$Conform->error();
 		}
 		return $v;

@@ -64,7 +64,7 @@ class Db{
 		if(!$db){
 			$db = \Grithin\Db::primary();
 		}
-		$table_info = $db->tableInfo($table);
+		$table_info = $db->table_info($table);
 		$validaters = [];
 		foreach($table_info['columns'] as $key=>$column_info){
 			$validaters[$key] = self::field_get_validaters($key, $column_info);
